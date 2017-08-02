@@ -3,6 +3,7 @@
 #include <fstream>
 #include <bitset>
 #include <cstring>
+#include <ctime>
 
 typedef unsigned char  byte_t; //  8-bit
 typedef unsigned short word_t; // 16-bit
@@ -12,14 +13,21 @@ typedef unsigned short word_t; // 16-bit
 
 enum class OpCode
 {
+    ADD_Vx_NN,
     BCD_Vx,
-    CALL,
-    DRW,
-    LD_I,
-    LD_Vx_byte,
+    CALL_NNN,
+    DRW_Vx_Vy_N,
+    LD_DT_Vx,
+    LD_Vx_DT,
+    LD_I_NNN,
+    LD_Vx_NN,
     LD_Vx_I,
     LD_I_Vx,
     LD_F_Vx,
+    SE_Vx_NN,
+    JMP_NNN,
+    RND_Vx_NN,
+    SKNP_Vx,
     RET,
     NOOP
 };
@@ -45,14 +53,21 @@ class Interpreter
         // Get opcode from instruction
         OpCode opcode(word_t instruction)
         {
-            if ((instruction  & 0xF000) == 0xA000) return OpCode::LD_I;
-            if ((instruction  & 0xF000) == 0x6000) return OpCode::LD_Vx_byte;
+            if ((instruction  & 0xF000) == 0x7000) return OpCode::ADD_Vx_NN;
+            if ((instruction  & 0xF0FF) == 0xF015) return OpCode::LD_DT_Vx;
+            if ((instruction  & 0xF0FF) == 0xF007) return OpCode::LD_Vx_DT;
+            if ((instruction  & 0xF000) == 0xA000) return OpCode::LD_I_NNN;
+            if ((instruction  & 0xF000) == 0x6000) return OpCode::LD_Vx_NN;
             if ((instruction  & 0xF0FF) == 0xF055) return OpCode::LD_I_Vx;
             if ((instruction  & 0xF0FF) == 0xF065) return OpCode::LD_Vx_I;
             if ((instruction  & 0xF0FF) == 0xF029) return OpCode::LD_F_Vx;
-            if ((instruction  & 0xF000) == 0xD000) return OpCode::DRW;
-            if ((instruction  & 0xF000) == 0x2000) return OpCode::CALL;
+            if ((instruction  & 0xF000) == 0xD000) return OpCode::DRW_Vx_Vy_N;
+            if ((instruction  & 0xF000) == 0x2000) return OpCode::CALL_NNN;
             if ((instruction  & 0xF0FF) == 0xF033) return OpCode::BCD_Vx;
+            if ((instruction  & 0xF000) == 0x3000) return OpCode::SE_Vx_NN;
+            if ((instruction  & 0xF000) == 0x1000) return OpCode::JMP_NNN;
+            if ((instruction  & 0xF000) == 0xC000) return OpCode::RND_Vx_NN;
+            if ((instruction  & 0xF0FF) == 0xE0A1) return OpCode::SKNP_Vx;
             if  (instruction == 0x00EE)            return OpCode::RET;
             return OpCode::NOOP;
         }
@@ -61,22 +76,21 @@ class Interpreter
         {
             switch (opcode(instruction))
             {
-                // 6xkk -> Load Vx with kk
-                case OpCode::LD_Vx_byte:
+                // 6xnn -> Load Vx with nn
+                case OpCode::LD_Vx_NN:
                 {
-                    byte_t reg = instruction >> 8 & 0x0F;
-                    byte_t val = instruction;
-                    registers_v[int(reg)] = val;
+                    auto x = instruction >> 8 & 0x0F;
+                    registers_v[x] = instruction & 0x00FF;
                     break;
                 }
                 // Annn -> Store nnn in reg I
-                case OpCode::LD_I:
+                case OpCode::LD_I_NNN:
                 {
                     registers_i = instruction & 0x0FFF;
                     break;
                 }
                 // Dxyn -> Draw n-byte sprite at Vx,Vy
-                case OpCode::DRW:
+                case OpCode::DRW_Vx_Vy_N:
                 {
                     const byte_t n = instruction & 0x000F;
                     byte_t* sprite = new byte_t[n];
@@ -90,9 +104,9 @@ class Interpreter
                     break;
                 }
                 // 2nnn -> Call subroutine at nnn
-                case OpCode::CALL:
+                case OpCode::CALL_NNN:
                 {
-                    stack_pointer++; // TODO: Stack[0] might need to be initially set to PROGRAM_START_ADDR
+                    stack_pointer++;
                     stack[stack_pointer] = program_counter;
                     program_counter = instruction & 0x0FFF;
                     return; // Don't want the pc to increment
@@ -111,9 +125,9 @@ class Interpreter
                     auto  x = instruction >> 8 & 0x0F;
                     auto vx = registers_v[x];
 
-                    mem[registers_i]   = vx/100; vx %= 100; // 100
-                    mem[registers_i+1] = vx/10;             // 10
-                    mem[registers_i+2] = vx%10;             // 1
+                    mem[registers_i]   = vx / 100; vx %= 100; // 100
+                    mem[registers_i+1] = vx / 10;             // 10
+                    mem[registers_i+2] = vx % 10;             // 1
                     break;
                 }
 
@@ -142,6 +156,70 @@ class Interpreter
                 // Fx29 -> Set reg I to mem addr of font sprite referred to in Vx
                 case OpCode::LD_F_Vx:
                 {
+                    auto x = instruction >> 8 & 0x0F;
+                    registers_i = mem[x*5]; // Each sprite is 5b and stored in mem contiguously starting at 0x000
+                    break;
+                }
+
+                // 7xnn -> Vx = Vx + nn
+                case OpCode::ADD_Vx_NN:
+                {
+                    auto x = instruction >> 8 & 0x0F;
+                    registers_v[x] += instruction & 0x00FF;
+                    break;
+                }
+
+                // Fx15 -> Load DT with Vx
+                case OpCode::LD_DT_Vx:
+                {
+                    auto x = instruction >> 8 & 0x0F;
+                    registers_delay_timer = registers_v[x];
+                    break;
+                }
+
+                // Fx07 -> Load Vx with DT
+                case OpCode::LD_Vx_DT:
+                {
+                    auto x = instruction >> 8 & 0x0F;
+                    registers_v[x] = registers_delay_timer;
+                    break;
+                }
+
+                // 3xnn -> Skip next instruction if Vx == nn
+                case OpCode::SE_Vx_NN:
+                {
+                    auto  x = instruction >> 8 & 0x0F;
+                    auto nn = instruction & 0x00FF;
+
+                    if (registers_v[x] == nn)
+                        program_counter += 2;
+
+                    break;
+                }
+
+                // 1nnn -> Jump to addr nnn
+                case OpCode::JMP_NNN:
+                {
+                    program_counter = instruction & 0x0FFF;
+                    return; // Don't want the pc to increment
+                }
+
+                // Cxnn -> Generate random number between 0-255. AND with nn and store in Vx
+                case OpCode::RND_Vx_NN:
+                {
+                    auto  x = instruction >> 8 & 0x0F;
+                    auto nn = instruction & 0x00FF;
+
+                    std::srand(std::time(0));
+                    auto rand = std::rand() % 256;
+
+                    registers_v[x] = rand & nn;
+                    break;
+                }
+
+                // ExA1 -> Skip next instruction if key(Vx) not pressed
+                case OpCode::SKNP_Vx:
+                {
 
                     break;
                 }
@@ -160,122 +238,31 @@ class Interpreter
 
         void create_font_sprites()
         {
-            // 0
-            mem[0] = 0xF0;
-            mem[1] = 0x90;
-            mem[2] = 0x90;
-            mem[3] = 0x90;
-            mem[4] = 0xF0;
-
-            // 1
-            mem[5] = 0x20;
-            mem[6] = 0x60;
-            mem[7] = 0x20;
-            mem[8] = 0x20;
-            mem[9] = 0x70;
-
-            // 2
-            mem[10] = 0xF0;
-            mem[11] = 0x10;
-            mem[12] = 0xF0;
-            mem[13] = 0x80;
-            mem[14] = 0xF0;
-
-            // 3
-            mem[15] = 0xF0;
-            mem[16] = 0x10;
-            mem[17] = 0xF0;
-            mem[18] = 0x10;
-            mem[19] = 0xF0;
-
-            // 4
-            mem[20] = 0x90;
-            mem[21] = 0x90;
-            mem[22] = 0xF0;
-            mem[23] = 0x10;
-            mem[24] = 0x10;
-
-            // 5
-            mem[25] = 0xF0;
-            mem[26] = 0x80;
-            mem[27] = 0xF0;
-            mem[28] = 0x10;
-            mem[29] = 0xF0;
-
-            // 6
-            mem[30] = 0xF0;
-            mem[31] = 0x80;
-            mem[32] = 0xF0;
-            mem[33] = 0x90;
-            mem[34] = 0xF0;
-
-            // 7
-            mem[35] = 0xF0;
-            mem[36] = 0x10;
-            mem[37] = 0x20;
-            mem[38] = 0x40;
-            mem[39] = 0x40;
-
-            // 8
-            mem[40] = 0xF0;
-            mem[41] = 0x90;
-            mem[42] = 0xF0;
-            mem[43] = 0x90;
-            mem[44] = 0xF0;
-
-            // 9
-            mem[45] = 0xF0;
-            mem[46] = 0x90;
-            mem[47] = 0xF0;
-            mem[48] = 0x10;
-            mem[49] = 0xF0;
-
-            // A
-            mem[50] = 0xF0;
-            mem[51] = 0x90;
-            mem[52] = 0xF0;
-            mem[53] = 0x90;
-            mem[54] = 0x90;
-
-            // B
-            mem[55] = 0xE0;
-            mem[56] = 0x90;
-            mem[57] = 0xE0;
-            mem[58] = 0x90;
-            mem[59] = 0xE0;
-
-            // C
-            mem[60] = 0xF0;
-            mem[61] = 0x80;
-            mem[62] = 0x80;
-            mem[63] = 0x80;
-            mem[64] = 0xF0;
-
-            // D
-            mem[65] = 0xE0;
-            mem[66] = 0x90;
-            mem[67] = 0x90;
-            mem[68] = 0x90;
-            mem[69] = 0xE0;
-
-            // E
-            mem[70] = 0xF0;
-            mem[71] = 0x80;
-            mem[72] = 0xF0;
-            mem[73] = 0x80;
-            mem[74] = 0xF0;
-
-            // F
-            mem[75] = 0xF0;
-            mem[76] = 0x80;
-            mem[77] = 0xF0;
-            mem[78] = 0x80;
-            mem[79] = 0x80;
+            const byte_t font[] = {
+                0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+                0x20, 0x60, 0x20, 0x20, 0x70, // 1
+                0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+                0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+                0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+                0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+                0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+                0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+                0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+                0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+                0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+                0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+                0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+                0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+                0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+                0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+            };
+            memcpy(mem, font, sizeof(font));
         }
 
     public:
         Interpreter()
         {
+            stack[stack_pointer] = program_counter;
             create_font_sprites();
         }
 
@@ -307,6 +294,12 @@ class Interpreter
                           << std::hex << instruction << std::endl;
 
                 execute_instruction(instruction);
+
+                // TODO: Supposed to count down at a rate of 60Hz.
+                if (registers_delay_timer > 0) registers_delay_timer--;
+
+                // TODO: Also counts down at a rate of 60Hz; however, if > 0, plays a sound
+                if (registers_sound_timer > 0) registers_sound_timer--;
             }
         }
 
@@ -317,7 +310,9 @@ class Interpreter
 
         void reg_dump() const
         {
-            std::cout << "program_counter: " << int(program_counter) << std::endl;
+            std::cout << "program_counter: " << std::dec << int(program_counter) << std::endl;
+            std::cout << "registers_delay: " << std::dec << int(registers_delay_timer) << std::endl;
+            std::cout << "registers_sound: " << std::dec << int(registers_sound_timer) << std::endl;
 
             std::cout << "registers_v:" << std::endl;
             for (int i = 0; i < 16; i++)
@@ -338,9 +333,9 @@ class Interpreter
             std::cout << "stack_pointer: " << int(stack_pointer) << std::endl;
         }
 
-        void mem_dump(uint16_t bytes) const
+        void mem_dump(int bytes, int offset) const
         {
-            for (int i = PROGRAM_START_ADDR; i < PROGRAM_START_ADDR + bytes; i += 2)
+            for (int i = 0 + offset; i < offset + bytes; i += 2)
             {
                 //endianness_swap(mem[i]);
                 std::cout << std::hex << std::showbase << std::setw(4) << std::setfill('0') << i << ": "
@@ -361,5 +356,5 @@ int main(int argc, char** argv)
     Interpreter fish8;
     fish8.load(argv[1]);
     fish8.run();
-    //fish8.mem_dump(512);
+    //fish8.mem_dump(128, 0);
 }
