@@ -9,22 +9,25 @@
 enum class OpCode
 {
     ADD_Vx_NN,
+    ADD_Vx_Vy,
+    AND_Vx_Vy,
     BCD_Vx,
     CALL_NNN,
     DRW_Vx_Vy_N,
-    LD_DT_Vx,
-    LD_Vx_DT,
-    LD_I_NNN,
-    LD_Vx_NN,
-    LD_Vx_I,
-    LD_I_Vx,
-    LD_F_Vx,
-    SE_Vx_NN,
     JMP_NNN,
-    RND_Vx_NN,
-    SKNP_Vx,
+    LD_DT_Vx,
+    LD_F_Vx,
+    LD_I_NNN,
+    LD_I_Vx,
+    LD_Vx_DT,
+    LD_Vx_I,
+    LD_Vx_NN,
+    NOOP,
     RET,
-    NOOP
+    RND_Vx_NN,
+    SE_Vx_NN,
+    SKNP_Vx,
+    SNE_Vx_NN
 };
 
 class Interpreter
@@ -32,7 +35,7 @@ class Interpreter
     public:
         Interpreter();
 
-        // Loads ROM into interpreter's memory
+        // Load ROM into memory
         void load(std::string rom_path);
 
         // Do stuff
