@@ -1,4 +1,14 @@
-/.vscode
-/roms
+# Roms
+roms/
 
-fish-8
+# Build results
+build/
+bin/
+
+# Visual Studio dirs/files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.filters

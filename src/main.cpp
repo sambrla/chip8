@@ -10,7 +10,6 @@ int main(int argc, char** argv)
     }
 
     Interpreter chip8;
-    chip8.load(argv[1]);
+    chip8.load_rom(argv[1]);
     chip8.run();
-    //chip8.mem_dump(128, 0);
 }

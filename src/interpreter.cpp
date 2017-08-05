@@ -9,7 +9,7 @@
 Interpreter::Interpreter()
 {
     stack[stack_pointer] = program_counter;
-    create_font_sprites();
+    load_font_sprites();
 }
 
 inline void Interpreter::swap_endian(DWord &word)
@@ -100,15 +100,15 @@ void Interpreter::execute_instruction(DWord instruction)
         // Dxyn: Draw n-byte sprite at Vx,Vy
         case OpCode::DRW_Vx_Vy_N:
         {
-            const Word n = instruction & 0x000F;
+            const auto n = instruction & 0x000F;
             Word* sprite = new Word[n];
 
-            // Copy sprite data from mem starting at addr reg I. Sprite size is 8xN
+            // Get sprite data from mem starting at addr reg I. Sprite size is 8xN
             memcpy(sprite, &mem[registers_i], sizeof(*sprite));
 
             // TODO: Draw sprite
 
-            delete sprite;
+            delete[] sprite;
             break;
         }
 
@@ -146,7 +146,7 @@ void Interpreter::execute_instruction(DWord instruction)
         case OpCode::LD_I_Vx:
         {
             auto x = (instruction & 0x0F00) >> 8;
-            for (int i = 0; i <= x; i++, registers_i++)
+            for (auto i = 0; i <= x; i++, registers_i++)
             {
                 mem[registers_i] = registers_v[i];
             }
@@ -165,7 +165,7 @@ void Interpreter::execute_instruction(DWord instruction)
         case OpCode::LD_Vx_I:
         {
             auto x = (instruction & 0x0F00) >> 8;
-            for (int i = 0; i <= x; i++, registers_i++)
+            for (auto i = 0; i <= x; i++, registers_i++)
             {
                 registers_v[i] = mem[registers_i];
             }
@@ -191,7 +191,7 @@ void Interpreter::execute_instruction(DWord instruction)
         // Cxnn: Set Vx with random number between 0-255 AND nn
         case OpCode::RND_Vx_NN:
         {
-            std::srand(std::time(0));
+            std::srand((unsigned)std::time(nullptr));
             auto rand = std::rand() % 256;
 
             auto x = (instruction & 0x0F00) >> 8;
@@ -230,17 +230,20 @@ void Interpreter::execute_instruction(DWord instruction)
 
         default:
         {
-            std::cerr << "Unrecognised instruction @ " << std::dec << program_counter << ": "
-                      << std::hex << instruction << std::endl;
+            std::cerr << "Unrecognised instruction @ " << std::hex << program_counter << ": "
+                      << instruction << std::endl;
             __reg_dump();
             exit(1);
         }
     }
 
+    std::cout << "Executed instruction @ " << std::hex << program_counter << ": "
+              << instruction << std::endl;
+
     program_counter += 2;
 }
 
-void Interpreter::create_font_sprites()
+void Interpreter::load_font_sprites()
 {
     // Each digit is represented by 5 bytes
     const Word hex[] = {
@@ -266,7 +269,7 @@ void Interpreter::create_font_sprites()
     memcpy(mem, hex, sizeof(hex));
 }
 
-void Interpreter::load(std::string rom_path)
+void Interpreter::load_rom(std::string rom_path)
 {
     std::ifstream stream(rom_path, std::ios::binary);
     if (stream.is_open())
@@ -288,10 +291,6 @@ void Interpreter::run()
     while (true)
     {
         const auto instruction = mem[program_counter] << 8 | mem[program_counter+1];
-
-        std::cout << "Executing instruction @ " << std::dec << program_counter << ": "
-                  << std::hex << instruction << std::endl;
-
         execute_instruction(instruction);
 
         // TODO: Supposed to count down at a rate of 60Hz.
@@ -316,7 +315,7 @@ void Interpreter::__reg_dump() const
     // std::cout << "registers_sound: " << std::dec << int(registers_sound_timer) << std::endl;
 
     std::cout << "registers_v:" << std::endl;
-    for (int i = 0; i < 16; i++)
+    for (auto i = 0; i < 16; i++)
     {
         std::cout << std::setw(4) << "V" << std::hex << i << ": "
                     << std::dec << int(registers_v[i])
@@ -336,7 +335,7 @@ void Interpreter::__reg_dump() const
 
 void Interpreter::__mem_dump(int bytes, int offset) const
 {
-    for (int i = 0 + offset; i < offset + bytes; i += 2)
+    for (auto i = 0 + offset; i < offset + bytes; i += 2)
     {
         //endianness_swap(mem[i]);
         std::cout << std::hex << std::showbase << std::setw(4) << std::setfill('0') << i << ": "

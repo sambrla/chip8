@@ -32,44 +32,44 @@ enum class OpCode
 
 class Interpreter
 {
-    public:
-        Interpreter();
+public:
+    Interpreter();
 
-        // Load ROM into memory
-        void load(std::string rom_path);
+    // Load ROM into memory
+    void load_rom(std::string rom_path);
 
-        // Do stuff
-        void run();
+    // Do stuff
+    void run();
 
-        // Debugging
-        void __reg_dump() const;
-        void __mem_dump(int bytes, int offset) const;
+    // Debugging
+    void __reg_dump() const;
+    void __mem_dump(int bytes, int offset) const;
 
-    private:
-        typedef unsigned char   Word; //  8-bit TODO: Word size might be 16-bit -- check.
-        typedef unsigned short DWord; // 16-bit
+private:
+    typedef unsigned char   Word; //  8-bit TODO: Word size might be 16-bit -- check.
+    typedef unsigned short DWord; // 16-bit
 
-         Word mem[MEMORY_SIZE] {/* value init */};
-         Word registers_v[16] {/* value init */};
-        DWord registers_i = 0;
-         Word registers_sound_timer = 0;
-         Word registers_delay_timer = 0;
-        DWord stack[16] {/* value init */};
-         Word stack_pointer = 0;
-        DWord program_counter = PROGRAM_START_ADDR;
+     Word mem[MEMORY_SIZE] {/* value init */};
+     Word registers_v[16] {/* value init */};
+    DWord registers_i = 0;
+     Word registers_sound_timer = 0;
+     Word registers_delay_timer = 0;
+    DWord stack[16] {/* value init */};
+     Word stack_pointer = 0;
+    DWord program_counter = PROGRAM_START_ADDR;
 
-        // Swap word from big to little endian (or vice versa).
-        // Bytes are expected to be interpreted as big endian
-        void swap_endian(DWord &word);
+    // Swap word from big to little endian (or vice versa).
+    // Bytes are expected to be interpreted as big endian
+    void swap_endian(DWord &word);
 
-        // Decode instruction opcode
-        OpCode opcode(DWord instruction);
+    // Decode instruction opcode
+    OpCode opcode(DWord instruction);
 
-        // Execute instruction
-        void execute_instruction(DWord instruction);
+    // Execute instruction
+    void execute_instruction(DWord instruction);
 
-        // Create default hexidecimal font sprites. Sprites are loaded into mem between 0x000 and 0x199
-        void create_font_sprites();
+    // Create default hexidecimal font sprites. Sprites are loaded into mem between 0x000 and 0x199
+    void load_font_sprites();
 };
 
 #endif // CHIP8_INTERPRETER_H_
