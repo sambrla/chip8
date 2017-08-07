@@ -47,36 +47,64 @@ enum class OpCode
     XOR_Vx_Vy
 };
 
+enum Keypad
+{
+    Key_0,
+    Key_1,
+    Key_2,
+    Key_3,
+    Key_4,
+    Key_5,
+    Key_6,
+    Key_7,
+    Key_8,
+    Key_9,
+    Key_A,
+    Key_B,
+    Key_C,
+    Key_D,
+    Key_E,
+    Key_F
+};
+
 class Interpreter
 {
-public: 
+  public:
+    struct FrameBuffer
+    {
+        static const unsigned kWidth  = 64;
+        static const unsigned kHeight = 32;
+        u8 pixels[kWidth * kHeight]{};
+    };
+
     Interpreter();
 
     void cycle();
     void load_rom(std::string rom_path);
+    const FrameBuffer *frame() const;
 
-    // Get frame buffer pixles. Frame buffer size is 64x32 and is stored row-first
-    const u8* get_frame_buffer() const;
+    void key_state_changed(Keypad key, bool isPressed);
 
     // Debugging
-    void __reg_dump() const;
-    void __mem_dump(int bytes, int offset) const;
+    void dump_registers() const;
+    void dump_memory(unsigned bytes, unsigned offset = 0) const;
 
-private:
-      u8 mem[MEMORY_SIZE] {/* value init */};
-      u8 registers_v[16] {};
-     u16 registers_i = 0;
-      u8 registers_sound_timer = 0;
-      u8 registers_delay_timer = 0;
-     u16 stack[16] {};
-      u8 stack_pointer = 0;
-     u16 program_counter = PROGRAM_START_ADDR;
-      u8 frame_buffer[64*32] {};
-    bool key_state[16] {};
-    
+  private:
+     u8 mem[MEMORY_SIZE]{/* value init */};
+     u8 registers_v[16]{};
+    u16 registers_i = 0;
+     u8 registers_sound_timer = 0;
+     u8 registers_delay_timer = 0;
+    u16 stack[16]{};
+     u8 stack_pointer = 0;
+    u16 program_counter = PROGRAM_START_ADDR;
+
+    FrameBuffer framebuffer;
+    bool key_state[16]{};
+
     void execute_instruction(u16 instruction);
     OpCode opcode(u16 instruction) const;
-    
+
     // Create default hexidecimal font sprites. Sprites are loaded into mem between 0x000 and 0x199
     void load_font_sprites();
 };

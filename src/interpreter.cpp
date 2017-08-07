@@ -41,9 +41,14 @@ void Interpreter::load_rom(std::string rom_path)
     stream.close();
 }
 
-const u8* Interpreter::get_frame_buffer() const
+const Interpreter::FrameBuffer* Interpreter::frame() const
 {
-    return frame_buffer;
+    return &framebuffer;
+}
+
+void Interpreter::key_state_changed(Keypad key, bool isPressed)
+{
+    key_state[key] = isPressed;
 }
 
 void Interpreter::execute_instruction(u16 instruction)
@@ -93,9 +98,10 @@ void Interpreter::execute_instruction(u16 instruction)
             auto  x = (instruction & 0x0F00) >> 8;
             auto vx = registers_v[x];
 
-            mem[registers_i] = vx / 100; vx %= 100; // 100
-            mem[registers_i + 1] = vx / 10;             // 10
-            mem[registers_i + 2] = vx % 10;             // 1
+            mem[registers_i] = vx / 100;    // 100
+            vx %= 100;
+            mem[registers_i + 1] = vx / 10; // 10
+            mem[registers_i + 2] = vx % 10; // 1
             break;
         }
 
@@ -132,10 +138,10 @@ void Interpreter::execute_instruction(u16 instruction)
 
                         // As per Cowgod's desc, wrap pixels if they overflow past frame bounds
                         // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#Dxyn
-                        if (px_x >= 64) px_x %= 64;
-                        if (px_y >= 32) px_y %= 32;
+                        if (px_x >= framebuffer.kWidth)  px_x %= framebuffer.kWidth;
+                        if (px_y >= framebuffer.kHeight) px_y %= framebuffer.kHeight;
 
-                        auto frame_px = frame_buffer + (64 * px_y) + px_x;
+                        auto frame_px = framebuffer.pixels + px_x + px_y * framebuffer.kWidth;
 
                         // Vf is used to indicate collisions
                         // It should be set to 1 if any 'on' pixels will be changed to 'off'
@@ -187,6 +193,14 @@ void Interpreter::execute_instruction(u16 instruction)
             {
                 mem[registers_i] = registers_v[i];
             }
+            break;
+        }
+        
+        // Fx18: Set reg_ST = Vx
+        case OpCode::LD_ST_Vx:
+        {
+            auto x = (instruction & 0x0F00) >> 8;
+            registers_sound_timer = registers_v[x];
             break;
         }
 
@@ -264,6 +278,10 @@ void Interpreter::execute_instruction(u16 instruction)
             {
                 program_counter += 2;
             }
+            // printf("Unrecognised instruction @ %#x: %x\n", program_counter, instruction);
+            // dump_registers();
+            // dump_memory(32, registers_i);
+            // exit(1);
             break;
         }
 
@@ -275,6 +293,10 @@ void Interpreter::execute_instruction(u16 instruction)
             {
                 program_counter += 2;
             }
+            // printf("Unrecognised instruction @ %#x: %x\n", program_counter, instruction);
+            // dump_registers();
+            // dump_memory(32, registers_i);
+            // exit(1);
             break;
         }
 
@@ -301,48 +323,58 @@ void Interpreter::execute_instruction(u16 instruction)
             break;
         }
 
+        // 8xy5: Vx = Vx - Vy. Vf = !borrow
+        case OpCode::SUB_Vx_Vy:
+        {
+            auto x = (instruction & 0x0F00) >> 8;
+            auto y = (instruction & 0x00F0) >> 4;
+            
+            registers_v[0xF] = x > y ? 1 : 0;
+            registers_v[x]   = x - y;
+            break;
+        }
+
         default: // NOOP
         {
-            std::cerr << "Unrecognised instruction @ " << std::setw(4) << std::hex << std::showbase << program_counter << ": "
-                      << std::noshowbase << instruction << std::endl;
-            __reg_dump();
-            __mem_dump(32, registers_i);
+            printf("Unrecognised instruction @ %#x: %x\n", program_counter, instruction);
+            dump_registers();
+            dump_memory(32, registers_i);
             exit(1);
         }
     }
 
-    std::cout << "Executed instruction @ " << std::setw(4) << std::hex << std::showbase << program_counter << ": "
-              << std::noshowbase << instruction << std::endl;
-
+    //printf("%#x: %04x\n", program_counter, instruction);
     program_counter += 2;
 }
 
 OpCode Interpreter::opcode(u16 instruction) const
 {
-    if ((instruction & 0xF0FF) == 0xF01E) return OpCode::ADD_I_Vx;
-    if ((instruction & 0xF000) == 0x7000) return OpCode::ADD_Vx_NN;
-    if ((instruction & 0xF00F) == 0x8004) return OpCode::ADD_Vx_Vy;
-    if ((instruction & 0xF00F) == 0x8002) return OpCode::AND_Vx_Vy;
-    if ((instruction & 0xF0FF) == 0xF033) return OpCode::BCD_Vx;
-    if ((instruction & 0xF000) == 0x2000) return OpCode::CALL_NNN;
-    if ((instruction & 0xF000) == 0xD000) return OpCode::DRW_Vx_Vy_N;
-    if ((instruction & 0xF000) == 0x1000) return OpCode::JMP_NNN;
-    if ((instruction & 0xF0FF) == 0xF015) return OpCode::LD_DT_Vx;
-    if ((instruction & 0xF0FF) == 0xF029) return OpCode::LD_F_Vx;
-    if ((instruction & 0xF000) == 0xA000) return OpCode::LD_I_NNN;
-    if ((instruction & 0xF0FF) == 0xF055) return OpCode::LD_I_Vx;
-    if ((instruction & 0xF0FF) == 0xF007) return OpCode::LD_Vx_DT;
-    if ((instruction & 0xF0FF) == 0xF065) return OpCode::LD_Vx_I;
-    if ((instruction & 0xF000) == 0x6000) return OpCode::LD_Vx_NN;
-    if ((instruction & 0xF00F) == 0x8000) return OpCode::LD_Vx_Vy;
-    if (instruction == 0x00EE)            return OpCode::RET;
-    if ((instruction & 0xF000) == 0xC000) return OpCode::RND_Vx_NN;
-    if ((instruction & 0xF000) == 0x3000) return OpCode::SE_Vx_NN;
-    if ((instruction & 0xF0FF) == 0xE09E) return OpCode::SKP_Vx;
-    if ((instruction & 0xF0FF) == 0xE0A1) return OpCode::SKNP_Vx;
-    if ((instruction & 0xF000) == 0x4000) return OpCode::SNE_Vx_NN;
-    if ((instruction & 0xF00F) == 0x9000) return OpCode::SNE_Vx_Vy;
-    
+    if ((instruction &  0xF0FF) == 0xF01E) return OpCode::ADD_I_Vx;
+    if ((instruction &  0xF000) == 0x7000) return OpCode::ADD_Vx_NN;
+    if ((instruction &  0xF00F) == 0x8004) return OpCode::ADD_Vx_Vy;
+    if ((instruction &  0xF00F) == 0x8002) return OpCode::AND_Vx_Vy;
+    if ((instruction &  0xF0FF) == 0xF033) return OpCode::BCD_Vx;
+    if ((instruction &  0xF000) == 0x2000) return OpCode::CALL_NNN;
+    if ((instruction &  0xF000) == 0xD000) return OpCode::DRW_Vx_Vy_N;
+    if ((instruction &  0xF000) == 0x1000) return OpCode::JMP_NNN;
+    if ((instruction &  0xF0FF) == 0xF015) return OpCode::LD_DT_Vx;
+    if ((instruction &  0xF0FF) == 0xF029) return OpCode::LD_F_Vx;
+    if ((instruction &  0xF000) == 0xA000) return OpCode::LD_I_NNN;
+    if ((instruction &  0xF0FF) == 0xF055) return OpCode::LD_I_Vx;
+    if ((instruction &  0xF0FF) == 0xF018) return OpCode::LD_ST_Vx;
+    if ((instruction &  0xF0FF) == 0xF007) return OpCode::LD_Vx_DT;
+    if ((instruction &  0xF0FF) == 0xF065) return OpCode::LD_Vx_I;
+    if ((instruction &  0xF000) == 0x6000) return OpCode::LD_Vx_NN;
+    if ((instruction &  0xF00F) == 0x8000) return OpCode::LD_Vx_Vy;
+    if  (instruction == 0x00EE)            return OpCode::RET;
+    if ((instruction &  0xF000) == 0xC000) return OpCode::RND_Vx_NN;
+    if ((instruction &  0xF000) == 0x3000) return OpCode::SE_Vx_NN;
+    if ((instruction &  0xF0FF) == 0xE09E) return OpCode::SKP_Vx;
+    if ((instruction &  0xF0FF) == 0xE0A1) return OpCode::SKNP_Vx;
+    if ((instruction &  0xF000) == 0x4000) return OpCode::SNE_Vx_NN;
+    if ((instruction &  0xF00F) == 0x9000) return OpCode::SNE_Vx_Vy;
+    if ((instruction &  0xF00F) == 0x8005) return OpCode::SUB_Vx_Vy;
+
     // Although there is no NOOP opcode, we'll use it to signal an invalid instruction
     return OpCode::NOOP;
 }
@@ -373,54 +405,24 @@ void Interpreter::load_font_sprites()
     memcpy(mem, hex, sizeof(hex));
 }
 
-
-
-
-
-
-
-
-
-
-
-
-void Interpreter::__reg_dump() const
+void Interpreter::dump_registers() const
 {
-    // std::cout << "program_counter: " << std::dec << int(program_counter) << std::endl;
-    // std::cout << "registers_delay: " << std::dec << int(registers_delay_timer) << std::endl;
-    // std::cout << "registers_sound: " << std::dec << int(registers_sound_timer) << std::endl;
-
-    std::cout << "registers_v:" << std::endl;
+    printf("registers_v:\n");
     for (auto i = 0; i < 16; i++)
     {
-        std::cout << std::setw(4) << "V" << std::hex << std::noshowbase << i << ": "
-                  << std::showbase << int(registers_v[i])
-                  << std::endl;
+        printf("  V%x: %X\n", i, registers_v[i]);
     }
-    std::cout << "registers_i: " << int(registers_i) << std::endl;
 
-    // std::cout << "stack:" << std::endl;
-    // for (int i = 0; i < 16; i++)
-    // {
-    //     std::cout << std::setw(4) << "S" << std::hex << i << ": "
-    //                 << std::dec << int(stack[i])
-    //                 << std::endl;
-    // }
-    // std::cout << "stack_pointer: " << int(stack_pointer) << std::endl;
+    printf("registers_i: %X\n", registers_i);
+    printf("registers_delay: %X\n", registers_delay_timer);
+    printf("registers_sound: %X\n", registers_sound_timer);
 }
 
-void Interpreter::__mem_dump(int bytes, int offset) const
+void Interpreter::dump_memory(unsigned bytes, unsigned offset) const
 {
-    for (auto i = 0 + offset; i < offset + bytes; i += 2)
+    printf("memory:\n");
+    for (auto i = offset; i < offset + bytes; i += 2)
     {
-        //endianness_swap(mem[i]);
-        //std::cout << std::hex << std::showbase << std::setw(4) << std::setfill('0') << i << ": "
-        //          << std::noshowbase << std::setw(2) << int(mem[i]) << " " << std::setw(2) << int(mem[i+1])
-        //          << std::endl;
-
-
-        std::cout << std::setw(4) << std::hex << std::showbase << i << ": "
-            << std::noshowbase << std::setfill('0') << int(mem[i]) << " " << int(mem[i + 1])
-            << std::endl;
+        printf("  %05x: %02X %02X\n", i, mem[i], mem[i + 1]);
     }
 }
