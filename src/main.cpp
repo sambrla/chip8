@@ -1,9 +1,9 @@
 #include <iostream>
+#include <map>
 #include <SFML/Graphics.hpp>
-#include "common.hpp"
 #include "interpreter.hpp"
 
-#define SCALE 15 // The original Chip-8 resolution was 64x32. Scale that by a factor of ?
+#define SCALE 10 // The original Chip-8 resolution was 64x32. Scale that by a factor of ?
 
 void draw_frame(sf::RenderWindow& win, const Interpreter::FrameBuffer* frame)
 {
@@ -12,9 +12,9 @@ void draw_frame(sf::RenderWindow& win, const Interpreter::FrameBuffer* frame)
         for (auto x = 0, i = 0; x < frame->kWidth; x++, i = x + y * frame->kWidth) // i = pixel index
         {
             auto px = frame->pixels + i;
-            if ((*px & 1) == 1) // is on
+            if (*px == 1) // is on
             {
-                auto* quad = &vertices[i * 4];
+                auto quad = &vertices[i * 4];
 
                 quad[0].position = sf::Vector2f(x * SCALE,         y * SCALE);
                 quad[1].position = sf::Vector2f(x * SCALE + SCALE, y * SCALE);
@@ -31,6 +31,42 @@ void draw_frame(sf::RenderWindow& win, const Interpreter::FrameBuffer* frame)
     win.draw(vertices);
 }
 
+// Map SFML key codes to Chip-8 interpreter hex keypad
+std::map<sf::Keyboard::Key, unsigned char> key_map
+{
+    { sf::Keyboard::Key::Num1, 0x1 },
+    { sf::Keyboard::Key::Num2, 0x2 },
+    { sf::Keyboard::Key::Num3, 0x3 },
+    { sf::Keyboard::Key::Num4, 0xC },
+    { sf::Keyboard::Key::Q,    0x4 },
+    { sf::Keyboard::Key::E,    0x5 },
+    { sf::Keyboard::Key::A,    0x6 },
+    { sf::Keyboard::Key::R,    0xD },
+    { sf::Keyboard::Key::W,    0x7 },
+    { sf::Keyboard::Key::S,    0x8 },
+    { sf::Keyboard::Key::D,    0x9 },
+    { sf::Keyboard::Key::F,    0xE },
+    { sf::Keyboard::Key::Z,    0xA },
+    { sf::Keyboard::Key::X,    0x0 },
+    { sf::Keyboard::Key::C,    0xB },
+    { sf::Keyboard::Key::V,    0xF }
+};
+
+void process_input(Interpreter* chip8)
+{
+    for (auto it = key_map.begin(); it != key_map.end(); ++it)
+    {
+        if (sf::Keyboard::isKeyPressed(it->first))
+        {
+            chip8->press_key(it->second);
+        }
+        else
+        {
+            chip8->release_key(it->second);
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     if (argc <= 1)
@@ -44,7 +80,7 @@ int main(int argc, char** argv)
 
     sf::RenderWindow win(sf::VideoMode(64 * SCALE, 32 * SCALE), "Chip-8");
     win.setFramerateLimit(60);
-    win.setKeyRepeatEnabled(false);
+    //win.setKeyRepeatEnabled(false);
 
     while (win.isOpen())
     {
@@ -55,103 +91,28 @@ int main(int argc, char** argv)
             {
                 win.close();
             }
-            if (event.type == sf::Event::KeyPressed || event.type == sf::Event::KeyReleased)
-            {
-                switch (event.key.code)
-                {
-                    case sf::Keyboard::Num0:
-                    {
-                        chip8.key_state_changed(Key_0, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::Num1:
-                    {
-                        chip8.key_state_changed(Key_1, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::Num2:
-                    {
-                        chip8.key_state_changed(Key_2, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::Num3:
-                    {
-                        chip8.key_state_changed(Key_3, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::Num4:
-                    {
-                        chip8.key_state_changed(Key_4, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::Num5:
-                    {
-                        chip8.key_state_changed(Key_5, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::Num6:
-                    {
-                        chip8.key_state_changed(Key_6, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::Num7:
-                    {
-                        chip8.key_state_changed(Key_7, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::Num8:
-                    {
-                        chip8.key_state_changed(Key_8, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::Num9:
-                    {
-                        chip8.key_state_changed(Key_9, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::A:
-                    {
-                        chip8.key_state_changed(Key_A, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::B:
-                    {
-                        chip8.key_state_changed(Key_B, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::C:
-                    {
-                        chip8.key_state_changed(Key_C, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::D:
-                    {
-                        chip8.key_state_changed(Key_D, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::E:
-                    {
-                        chip8.key_state_changed(Key_E, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    case sf::Keyboard::F:
-                    {
-                        chip8.key_state_changed(Key_F, sf::Keyboard::isKeyPressed(event.key.code));
-                        break;
-                    }
-                    default:
-                    {
-                        std::cout << "Unrecognised key " << event.key.code << std::endl;
-                        break;
-                    }
-                }
-                std::cout << "Pressed " << event.key.code << std::endl;
-            }
+            //if (event.type == sf::Event::KeyPressed)
+            //{
+            //    auto key = key_map.find(event.key.code);
+            //    if (key != key_map.end())
+            //    {
+            //        chip8.press_key(key->second);
+            //    }
+            //}
+            //if (event.type == sf::Event::KeyReleased)
+            //{
+            //    auto key = key_map.find(event.key.code);
+            //    if (key != key_map.end())
+            //    {
+            //        chip8.release_key(key->second);
+            //    }
+            //}
         }
 
         win.clear(sf::Color::Black);
 
         chip8.cycle();
+        process_input(&chip8);
         draw_frame(win, chip8.frame());
 
         win.display();

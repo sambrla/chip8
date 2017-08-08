@@ -9,81 +9,83 @@
 
 enum class OpCode
 {
-    ADD_I_Vx,
-    ADD_Vx_NN,
-    ADD_Vx_Vy,
-    AND_Vx_Vy,
-    BCD_Vx,
-    CALL_NNN,
+    SYS_NNN,
     CLS,
-    DRW_Vx_Vy_N,
-    JMP_NNN,
-    JMP_V0_NNN,
-    LD_DT_Vx,
-    LD_ST_Vx,
-    LD_B_Vx,
-    LD_F_Vx,
-    LD_I_NNN,
-    LD_I_Vx,
-    LD_Vx_DT,
-    LD_Vx_I,
-    LD_Vx_K,
-    LD_Vx_NN,
-    LD_Vx_Vy,
-    NOOP,
-    OR_Vx_Vy,
     RET,
-    RND_Vx_NN,
-    SE_Vx_NN,
+    JP_NNN,
+    CALL_NNN,
+    SE_Vx_KK,
+    SNE_Vx_KK,
     SE_Vx_Vy,
-    SHL_Vx,
+    LD_Vx_KK,
+    ADD_Vx_KK,
+    LD_Vx_Vy,
+    OR_Vx_Vy,
+    AND_Vx_Vy,
+    XOR_Vx_Vy,
+    ADD_Vx_Vy,
+    SUB_Vx_Vy,
     SHR_Vx,
+    SUBN_Vx_Vy,
+    SHL_Vx,
+    SNE_Vx_Vy,
+    LD_I_NNN,
+    JP_V0_NNN,
+    RND_Vx_KK,
+    DRW_Vx_Vy_N,
     SKP_Vx,
     SKNP_Vx,
-    SNE_Vx_NN,
-    SNE_Vx_Vy,
-    SUB_Vx_Vy,
-    SUBN_Vx_Vy,
-    XOR_Vx_Vy
-};
-
-enum Keypad
-{
-    Key_0,
-    Key_1,
-    Key_2,
-    Key_3,
-    Key_4,
-    Key_5,
-    Key_6,
-    Key_7,
-    Key_8,
-    Key_9,
-    Key_A,
-    Key_B,
-    Key_C,
-    Key_D,
-    Key_E,
-    Key_F
+    LD_Vx_DT,
+    LD_Vx_K,
+    LD_DT_Vx,
+    LD_ST_Vx,
+    ADD_I_Vx,
+    LD_F_Vx,
+    LD_B_Vx,
+    LD_I_Vx,
+    LD_Vx_I,
+    NOOP
 };
 
 class Interpreter
 {
   public:
+    //enum Keypad
+    //{
+    //    Key_0 = 0,
+    //    Key_1,
+    //    Key_2,
+    //    Key_3,
+    //    Key_4,
+    //    Key_5,
+    //    Key_6,
+    //    Key_7,
+    //    Key_8,
+    //    Key_9,
+    //    Key_A,
+    //    Key_B,
+    //    Key_C,
+    //    Key_D,
+    //    Key_E,
+    //    Key_F
+    //};
+
     struct FrameBuffer
     {
         static const unsigned kWidth  = 64;
         static const unsigned kHeight = 32;
         u8 pixels[kWidth * kHeight]{};
-    };
-
+    };    
+                                                                               
     Interpreter();
 
     void cycle();
     void load_rom(std::string rom_path);
-    const FrameBuffer *frame() const;
+    void press_key(u8 keycode);
+    void release_key(u8 keycode);
+    bool buzzer() const;
+    const FrameBuffer* frame() const;
 
-    void key_state_changed(Keypad key, bool isPressed);
 
     // Debugging
     void dump_registers() const;

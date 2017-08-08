@@ -41,68 +41,66 @@ void Interpreter::load_rom(std::string rom_path)
     stream.close();
 }
 
+void Interpreter::press_key(u8 keycode)
+{
+    if (keycode <= 0xF)
+    {
+        key_state[keycode] = true;
+    }
+}
+
+void Interpreter::release_key(u8 keycode)
+{
+    if (keycode <= 0xF)
+    {
+        key_state[keycode] = false;
+    }
+}
+
+bool Interpreter::buzzer() const
+{
+    return registers_sound_timer > 0;
+}
+
 const Interpreter::FrameBuffer* Interpreter::frame() const
 {
     return &framebuffer;
 }
 
-void Interpreter::key_state_changed(Keypad key, bool isPressed)
-{
-    key_state[key] = isPressed;
-}
-
 void Interpreter::execute_instruction(u16 instruction)
 {
+    const auto x   = (instruction & 0x0F00) >> 8;
+    const auto y   = (instruction & 0x00F0) >> 4;
+    const auto nnn =  instruction & 0x0FFF;
+    const auto kk  =  instruction & 0x00FF;
+    const auto n   =  instruction & 0x000F;
+    
     switch (opcode(instruction))
     {
-        // Fx1E: Set reg_I = reg_I + Vx
-        case OpCode::ADD_I_Vx:
+        // 00E0: Clear the display
+        case OpCode::CLS:
         {
-            auto x = (instruction & 0x0F00) >> 8;
-            registers_i += registers_v[x];
+            const auto size = framebuffer.kWidth * framebuffer.kHeight;
+            for (auto i = 0; i < size; i++)
+            {
+                framebuffer.pixels[i] = 0;
+            }
             break;
         }
 
-        // 7xnn: Set Vx to Vx + nn
-        case OpCode::ADD_Vx_NN:
+        // 00EE: Return from subroutine
+        case OpCode::RET:
         {
-            auto x = (instruction & 0x0F00) >> 8;
-            registers_v[x] += instruction & 0x00FF;
+            program_counter = stack[stack_pointer];
+            stack_pointer--;
             break;
         }
 
-        // 8xy4: Set Vx to Vx + Vy. If result > 255, Vf = 1; else 0
-        case OpCode::ADD_Vx_Vy:
+        // 1nnn: Jump to location nnn
+        case OpCode::JP_NNN:
         {
-            auto x = (instruction & 0x0F00) >> 8;
-            auto y = (instruction & 0x00F0) >> 4;
-
-            auto sum = x + y;
-            registers_v[0xF] = sum > 255 ? 1 : 0;
-            registers_v[x] = static_cast<u8>(sum);
-            break;
-        }
-
-        // 8xy2: Set Vx to Vx AND Vy
-        case OpCode::AND_Vx_Vy:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            auto y = (instruction & 0x00F0) >> 4;
-            registers_v[x] = x & y;
-            break;
-        }
-
-        // Fx33: Store binary-coded decimal of Vx in mem at addr reg_I (100), reg_I+1 (10), reg_I+2 (1)
-        case OpCode::BCD_Vx:
-        {
-            auto  x = (instruction & 0x0F00) >> 8;
-            auto vx = registers_v[x];
-
-            mem[registers_i] = vx / 100;    // 100
-            vx %= 100;
-            mem[registers_i + 1] = vx / 10; // 10
-            mem[registers_i + 2] = vx % 10; // 1
-            break;
+            program_counter = nnn;
+            return; // Don't want the pc to increment
         }
 
         // 2nnn: Call subroutine at nnn
@@ -110,31 +108,172 @@ void Interpreter::execute_instruction(u16 instruction)
         {
             stack_pointer++;
             stack[stack_pointer] = program_counter;
-            program_counter = instruction & 0x0FFF;
+            program_counter = nnn;
             return; // Don't want the pc to increment
         }
 
-        // Dxyn: Draw sprite at Vx,Vy with n bytes of sprite data starting at reg_I
+        // 3xkk: Skip next instruction if Vx == kk
+        case OpCode::SE_Vx_KK:
+        {
+            if (registers_v[x] == kk)
+            {
+                program_counter += 2;
+            }
+            break;
+        }
+
+        // 4xkk: Skip next instruction if Vx != kk
+        case OpCode::SNE_Vx_KK:
+        {
+            if (registers_v[x] != kk)
+            {
+                program_counter += 2;
+            }
+            break;
+        }
+
+        // 5xy0: Skip next instruction if Vx == Vy
+        case OpCode::SE_Vx_Vy:
+        {
+            if (registers_v[x] == registers_v[y])
+            {
+                program_counter += 2;
+            }
+            break;
+        }
+
+        // 6xkk: Set Vx = kk
+        case OpCode::LD_Vx_KK:
+        {
+            registers_v[x] = kk;
+            break;
+        }
+
+        // 7xkk: Set Vx = Vx + kk
+        case OpCode::ADD_Vx_KK:
+        {
+            registers_v[x] += kk;
+            break;
+        }
+
+        // 8xy0: Set Vx = Vy
+        case OpCode::LD_Vx_Vy:
+        {
+            registers_v[x] = registers_v[y];
+            break;
+        }
+
+        // 8xy1: Set Vx = Vx OR Vy
+        case OpCode::OR_Vx_Vy:
+        {
+            registers_v[x] |= registers_v[y];
+            break;
+        }
+
+        // 8xy2: Set Vx = Vx AND Vy
+        case OpCode::AND_Vx_Vy:
+        {
+            registers_v[x] &= registers_v[y];
+            break;
+        }
+
+        // 8xy3: Set Vx = Vx XOR Vy
+        case OpCode::XOR_Vx_Vy:
+        {
+            registers_v[x] ^= registers_v[y];
+            break;
+        }
+
+        // 8xy4: Set Vx = Vx + Vy, set VF = carry
+        case OpCode::ADD_Vx_Vy:
+        {
+            auto sum = registers_v[x] + registers_v[y];
+            registers_v[0xF] = sum > 255 ? 1 : 0;
+            registers_v[x]   = static_cast<u8>(sum);
+            break;
+        }
+
+        // 8xy5: Set Vx = Vx - Vy, set VF = NOT borrow
+        case OpCode::SUB_Vx_Vy:
+        {
+            registers_v[0xF] = registers_v[x] > registers_v[y] ? 1 : 0;
+            registers_v[x]  -= registers_v[y];
+            break;
+        }
+
+        // 8xy6: Set Vx = Vx SHR 1
+        case OpCode::SHR_Vx:
+        {
+            registers_v[x] = registers_v[x] >> 1;
+            break;
+        }
+
+        // 8xy7: Set Vx = Vy - Vx, set VF = NOT borrow
+        case OpCode::SUBN_Vx_Vy:
+        {
+            registers_v[0xF] = registers_v[y] > registers_v[x] ? 1 : 0;
+            registers_v[x]   = registers_v[y] - registers_v[x];
+            break;
+        }
+
+        // 8xyE: Set Vx = Vx SHL 1
+        case OpCode::SHL_Vx:
+        {
+            registers_v[x] = registers_v[x] << 1;
+            break;
+        }
+
+        // 9xy0: Skip next instruction if Vx != Vy
+        case OpCode::SNE_Vx_Vy:
+        {
+            if (registers_v[x] != registers_v[y])
+            {
+                program_counter += 2;
+            }
+            break;
+        }
+
+        // Annn: Set I = nnn
+        case OpCode::LD_I_NNN:
+        {
+            registers_i = nnn;
+            break;
+        }
+
+        // Bnnn: Jump to location nnn + V0
+        case OpCode::JP_V0_NNN:
+        {
+            program_counter = nnn + registers_v[0];
+            break;
+        }
+
+        // Cxkk: Set Vx = random byte AND kk
+        case OpCode::RND_Vx_KK:
+        {
+            std::srand(static_cast<unsigned>(std::time(nullptr)));
+            auto rand = std::rand() % 256;
+
+            registers_v[x] = rand & kk;
+            break;
+        }
+
+        // Dxyn: Display n-byte sprite starting at memory location I at (Vx, Vy); set VF = collision
         case OpCode::DRW_Vx_Vy_N:
         {
-            const auto x = registers_v[(instruction & 0x0F00) >> 8];
-            const auto y = registers_v[(instruction & 0x00F0) >> 4];
-            const auto n = instruction & 0x000F;
-
             registers_v[0xF] = 0;
-            for (auto i = 0; i < n; i++)
+            for (auto row = 0; row < n; row++)
             {
-                auto sprite_byte = mem[registers_i + i];
-                for (auto j = 0; j < 8; j++)
+                auto sprite_byte = mem[registers_i + row];
+                for (auto bit = 0; bit < 8; bit++)
                 {
                     // Process bits left-to-right
-                    const auto sprite_px = sprite_byte & (0x80 >> j);
+                    const auto sprite_px = sprite_byte & (0x80 >> bit);
 
                     // Erasing a pixel involves drawing it again, so only process pixels that are not 0
                     if (sprite_px != 0)
                     {
-                        auto px_x = x + j;
-                        auto px_y = y + i;
+                        auto px_x = registers_v[x] + bit;
+                        auto px_y = registers_v[y] + row;
 
                         // As per Cowgod's desc, wrap pixels if they overflow past frame bounds
                         // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#Dxyn
@@ -155,40 +294,83 @@ void Interpreter::execute_instruction(u16 instruction)
             break;
         }
 
-        // 1nnn: Jump to addr nnn
-        case OpCode::JMP_NNN:
+        // Ex9E: Skip next instruction if key with the value of Vx is pressed
+        case OpCode::SKP_Vx:
         {
-            program_counter = instruction & 0x0FFF;
-            return; // Don't want the pc to increment
+            if (key_state[registers_v[x]])
+            {
+                program_counter += 2;
+            }
+            break;
         }
 
-        // Fx15: Load DT with Vx
+        // ExA1: Skip next instruction if key with the value of Vx is not pressed
+        case OpCode::SKNP_Vx:
+        {
+            if (!key_state[registers_v[x]])
+            {
+                program_counter += 2;
+            }
+            break;
+        }
+
+        // Fx07: Set Vx = delay timer value
+        case OpCode::LD_Vx_DT:
+        {
+            registers_v[x] = registers_delay_timer;
+            break;
+        }
+
+        // Fx0A: Wait for a key press, store the value of the key in Vx
+        //case OpCode::LD_Vx_K:
+        //{
+        //    // TODO: Implement. Remove from default:
+        //    break;
+        //}
+
+        // Fx15: Set delay timer = Vx
         case OpCode::LD_DT_Vx:
         {
-            auto x = (instruction & 0x0F00) >> 8;
             registers_delay_timer = registers_v[x];
             break;
         }
 
-        // Fx29: Set reg_I to mem addr of font sprite referred to in Vx
+        // Fx18: Set sound timer = Vx
+        case OpCode::LD_ST_Vx:
+        {
+            registers_sound_timer = registers_v[x];
+            break;
+        }
+        
+        // Fx1E: Set I = I + Vx
+        case OpCode::ADD_I_Vx:
+        {
+            registers_i += registers_v[x];
+            break;
+        }
+
+        // Fx29: Set I = location of sprite for digit Vx
         case OpCode::LD_F_Vx:
         {
-            auto x = (instruction & 0x0F00) >> 8;
-            registers_i = x * 5; // Each sprite is 5 bytes and stored in mem contiguously starting at 0x000
+            // Each sprite is 5 bytes and stored contiguously starting at 0x000
+            registers_i = x * 5; 
             break;
         }
-
-        // Annn: Store nnn in reg I
-        case OpCode::LD_I_NNN:
+        
+        // Fx33: Store BCD representation of Vx in memory locations
+        // I (100), I+1 (10), and I+2 (1)
+        case OpCode::LD_B_Vx:
         {
-            registers_i = instruction & 0x0FFF;
+            const auto vx = registers_v[x];
+            mem[registers_i]     = vx / 100;      // 100
+            mem[registers_i + 1] = vx % 100 / 10; // 10
+            mem[registers_i + 2] = vx % 100 % 10; // 1
             break;
         }
 
-        // Fx55: Load mem, starting at reg_I, with registers V0..Vx (inc.)
+        // Fx55: Store registers V0 through Vx in memory starting at I
         case OpCode::LD_I_Vx:
         {
-            auto x = (instruction & 0x0F00) >> 8;
             for (auto i = 0; i <= x; i++, registers_i++)
             {
                 mem[registers_i] = registers_v[i];
@@ -196,26 +378,9 @@ void Interpreter::execute_instruction(u16 instruction)
             break;
         }
         
-        // Fx18: Set reg_ST = Vx
-        case OpCode::LD_ST_Vx:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            registers_sound_timer = registers_v[x];
-            break;
-        }
-
-        // Fx07: Load Vx with DT
-        case OpCode::LD_Vx_DT:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            registers_v[x] = registers_delay_timer;
-            break;
-        }
-
-        // Fx65: Load registers V0..Vx (inc.) with values stored in mem starting at reg_I
+        // Fx65: Read registers V0 through Vx from memory starting at I
         case OpCode::LD_Vx_I:
         {
-            auto x = (instruction & 0x0F00) >> 8;
             for (auto i = 0; i <= x; i++, registers_i++)
             {
                 registers_v[i] = mem[registers_i];
@@ -223,157 +388,56 @@ void Interpreter::execute_instruction(u16 instruction)
             break;
         }
 
-        // 6xnn: Load Vx with nn
-        case OpCode::LD_Vx_NN:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            registers_v[x] = instruction & 0x00FF;
-            break;
-        }
-
-        // 8xy0: Load Vx with Vy
-        case OpCode::LD_Vx_Vy:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            auto y = (instruction & 0x00F0) >> 4;
-            registers_v[x] = registers_v[y];
-            break;
-        }
-
-        // Return
-        case OpCode::RET:
-        {
-            program_counter = stack[stack_pointer];
-            stack_pointer--;
-            break;
-        }
-
-        // Cxnn: Set Vx with random number between 0-255 AND nn
-        case OpCode::RND_Vx_NN:
-        {
-            std::srand(static_cast<unsigned>(std::time(nullptr)));
-            auto rand = std::rand() % 256;
-
-            auto x = (instruction & 0x0F00) >> 8;
-            registers_v[x] = rand & (instruction & 0x00FF);
-            break;
-        }
-
-        // 3xnn: Skip next instruction if Vx == nn
-        case OpCode::SE_Vx_NN:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            if (registers_v[x] == (instruction & 0x00FF))
-            {
-                program_counter += 2;
-            }
-            break;
-        }
-
-        // Ex9E: Skip next instruction if key(Vx) is pressed
-        case OpCode::SKP_Vx:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            if (key_state[x])
-            {
-                program_counter += 2;
-            }
-            // printf("Unrecognised instruction @ %#x: %x\n", program_counter, instruction);
-            // dump_registers();
-            // dump_memory(32, registers_i);
-            // exit(1);
-            break;
-        }
-
-        // ExA1: Skip next instruction if key(Vx) is not pressed
-        case OpCode::SKNP_Vx:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            if (!key_state[x])
-            {
-                program_counter += 2;
-            }
-            // printf("Unrecognised instruction @ %#x: %x\n", program_counter, instruction);
-            // dump_registers();
-            // dump_memory(32, registers_i);
-            // exit(1);
-            break;
-        }
-
-        // 4xnn: Skip next instruction if Vx != nn
-        case OpCode::SNE_Vx_NN:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            if (registers_v[x] != (instruction & 0x00FF))
-            {
-                program_counter += 2;
-            }
-            break;
-        }
-
-        // 9xy0: Skip next instruction if Vx != Vy
-        case OpCode::SNE_Vx_Vy:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            auto y = (instruction & 0x00F0) >> 4;
-            if (registers_v[x] != registers_v[y])
-            {
-                program_counter += 2;
-            }
-            break;
-        }
-
-        // 8xy5: Vx = Vx - Vy. Vf = !borrow
-        case OpCode::SUB_Vx_Vy:
-        {
-            auto x = (instruction & 0x0F00) >> 8;
-            auto y = (instruction & 0x00F0) >> 4;
-            
-            registers_v[0xF] = x > y ? 1 : 0;
-            registers_v[x]   = x - y;
-            break;
-        }
-
+        case OpCode::LD_Vx_K:
         default: // NOOP
         {
-            printf("Unrecognised instruction @ %#x: %x\n", program_counter, instruction);
+            printf("Unrecognised instruction @ 0x%04x: %04x\n", program_counter, instruction);
             dump_registers();
-            dump_memory(32, registers_i);
+            dump_memory(32, program_counter);
             exit(1);
         }
     }
 
-    //printf("%#x: %04x\n", program_counter, instruction);
+    printf("0x%04x: %04x\n", program_counter, instruction);
     program_counter += 2;
 }
 
 OpCode Interpreter::opcode(u16 instruction) const
 {
-    if ((instruction &  0xF0FF) == 0xF01E) return OpCode::ADD_I_Vx;
-    if ((instruction &  0xF000) == 0x7000) return OpCode::ADD_Vx_NN;
-    if ((instruction &  0xF00F) == 0x8004) return OpCode::ADD_Vx_Vy;
-    if ((instruction &  0xF00F) == 0x8002) return OpCode::AND_Vx_Vy;
-    if ((instruction &  0xF0FF) == 0xF033) return OpCode::BCD_Vx;
-    if ((instruction &  0xF000) == 0x2000) return OpCode::CALL_NNN;
-    if ((instruction &  0xF000) == 0xD000) return OpCode::DRW_Vx_Vy_N;
-    if ((instruction &  0xF000) == 0x1000) return OpCode::JMP_NNN;
-    if ((instruction &  0xF0FF) == 0xF015) return OpCode::LD_DT_Vx;
-    if ((instruction &  0xF0FF) == 0xF029) return OpCode::LD_F_Vx;
-    if ((instruction &  0xF000) == 0xA000) return OpCode::LD_I_NNN;
-    if ((instruction &  0xF0FF) == 0xF055) return OpCode::LD_I_Vx;
-    if ((instruction &  0xF0FF) == 0xF018) return OpCode::LD_ST_Vx;
-    if ((instruction &  0xF0FF) == 0xF007) return OpCode::LD_Vx_DT;
-    if ((instruction &  0xF0FF) == 0xF065) return OpCode::LD_Vx_I;
-    if ((instruction &  0xF000) == 0x6000) return OpCode::LD_Vx_NN;
-    if ((instruction &  0xF00F) == 0x8000) return OpCode::LD_Vx_Vy;
+    if  (instruction == 0x00E0)            return OpCode::CLS;
     if  (instruction == 0x00EE)            return OpCode::RET;
-    if ((instruction &  0xF000) == 0xC000) return OpCode::RND_Vx_NN;
-    if ((instruction &  0xF000) == 0x3000) return OpCode::SE_Vx_NN;
+    if ((instruction &  0xF000) == 0x1000) return OpCode::JP_NNN;
+    if ((instruction &  0xF000) == 0x2000) return OpCode::CALL_NNN;
+    if ((instruction &  0xF000) == 0x3000) return OpCode::SE_Vx_KK;
+    if ((instruction &  0xF000) == 0x4000) return OpCode::SNE_Vx_KK;
+    if ((instruction &  0xF00F) == 0x5000) return OpCode::SE_Vx_Vy;
+    if ((instruction &  0xF000) == 0x6000) return OpCode::LD_Vx_KK;
+    if ((instruction &  0xF000) == 0x7000) return OpCode::ADD_Vx_KK;
+    if ((instruction &  0xF00F) == 0x8000) return OpCode::LD_Vx_Vy;
+    if ((instruction &  0xF00F) == 0x8001) return OpCode::OR_Vx_Vy;
+    if ((instruction &  0xF00F) == 0x8002) return OpCode::AND_Vx_Vy;
+    if ((instruction &  0xF00F) == 0x8003) return OpCode::XOR_Vx_Vy;
+    if ((instruction &  0xF00F) == 0x8004) return OpCode::ADD_Vx_Vy;
+    if ((instruction &  0xF00F) == 0x8005) return OpCode::SUB_Vx_Vy;
+    if ((instruction &  0xF00F) == 0x8006) return OpCode::SHR_Vx;
+    if ((instruction &  0xF00F) == 0x8007) return OpCode::SUBN_Vx_Vy;
+    if ((instruction &  0xF00F) == 0x800E) return OpCode::SHL_Vx;
+    if ((instruction &  0xF00F) == 0x9000) return OpCode::SNE_Vx_Vy;
+    if ((instruction &  0xF000) == 0xA000) return OpCode::LD_I_NNN;
+    if ((instruction &  0xF000) == 0xB000) return OpCode::JP_V0_NNN;
+    if ((instruction &  0xF000) == 0xC000) return OpCode::RND_Vx_KK;
+    if ((instruction &  0xF000) == 0xD000) return OpCode::DRW_Vx_Vy_N;
     if ((instruction &  0xF0FF) == 0xE09E) return OpCode::SKP_Vx;
     if ((instruction &  0xF0FF) == 0xE0A1) return OpCode::SKNP_Vx;
-    if ((instruction &  0xF000) == 0x4000) return OpCode::SNE_Vx_NN;
-    if ((instruction &  0xF00F) == 0x9000) return OpCode::SNE_Vx_Vy;
-    if ((instruction &  0xF00F) == 0x8005) return OpCode::SUB_Vx_Vy;
+    if ((instruction &  0xF0FF) == 0xF007) return OpCode::LD_Vx_DT;
+    if ((instruction &  0xF0FF) == 0xF00A) return OpCode::LD_Vx_K;
+    if ((instruction &  0xF0FF) == 0xF015) return OpCode::LD_DT_Vx;
+    if ((instruction &  0xF0FF) == 0xF018) return OpCode::LD_ST_Vx;
+    if ((instruction &  0xF0FF) == 0xF01E) return OpCode::ADD_I_Vx;
+    if ((instruction &  0xF0FF) == 0xF029) return OpCode::LD_F_Vx;
+    if ((instruction &  0xF0FF) == 0xF033) return OpCode::LD_B_Vx;
+    if ((instruction &  0xF0FF) == 0xF055) return OpCode::LD_I_Vx;
+    if ((instruction &  0xF0FF) == 0xF065) return OpCode::LD_Vx_I;
 
     // Although there is no NOOP opcode, we'll use it to signal an invalid instruction
     return OpCode::NOOP;
@@ -423,6 +487,6 @@ void Interpreter::dump_memory(unsigned bytes, unsigned offset) const
     printf("memory:\n");
     for (auto i = offset; i < offset + bytes; i += 2)
     {
-        printf("  %05x: %02X %02X\n", i, mem[i], mem[i + 1]);
+        printf("  0x%04x: %02X %02X\n", i, mem[i], mem[i + 1]);
     }
 }
