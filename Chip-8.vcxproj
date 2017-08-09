@@ -23,7 +23,6 @@
     <ClCompile Include="src\interpreter.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="common.hpp" />
     <ClInclude Include="src\interpreter.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

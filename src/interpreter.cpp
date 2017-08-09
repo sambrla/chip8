@@ -17,10 +17,7 @@ void Interpreter::cycle()
     const u16 instruction = mem[program_counter] << 8 | mem[program_counter + 1];
     execute_instruction(instruction);
 
-    // TODO: Supposed to count down at a rate of 60Hz.
     if (registers_delay_timer > 0) registers_delay_timer--;
-
-    // TODO: Also counts down at a rate of 60Hz; however, if > 0, plays a sound
     if (registers_sound_timer > 0) registers_sound_timer--;
 }
 
@@ -31,6 +28,13 @@ void Interpreter::load_rom(std::string rom_path)
     {
         stream.seekg(0, stream.end);
         const auto len = stream.tellg();
+
+        if (len > MEMORY_SIZE - PROGRAM_START_ADDR)
+        {
+            std::cerr << "Rom file too large to fit in memory" << std::endl;
+            return;
+        }
+
         stream.seekg(0);
         stream.read(reinterpret_cast<char*>(&mem[PROGRAM_START_ADDR]), len);
     }
@@ -43,21 +47,15 @@ void Interpreter::load_rom(std::string rom_path)
 
 void Interpreter::press_key(u8 keycode)
 {
-    if (keycode <= 0xF)
-    {
-        key_state[keycode] = true;
-    }
+    if (keycode <= 0xF) key_state[keycode] = true;
 }
 
 void Interpreter::release_key(u8 keycode)
 {
-    if (keycode <= 0xF)
-    {
-        key_state[keycode] = false;
-    }
+    if (keycode <= 0xF) key_state[keycode] = false;
 }
 
-bool Interpreter::buzzer() const
+bool Interpreter::buzzer_active() const
 {
     return registers_sound_timer > 0;
 }
@@ -65,6 +63,47 @@ bool Interpreter::buzzer() const
 const Interpreter::FrameBuffer* Interpreter::frame() const
 {
     return &framebuffer;
+}
+
+Interpreter::OpCode Interpreter::opcode(u16 instruction) const
+{
+    if (instruction == 0x00E0)            return OpCode::CLS;
+    if (instruction == 0x00EE)            return OpCode::RET;
+    if ((instruction & 0xF000) == 0x1000) return OpCode::JP_NNN;
+    if ((instruction & 0xF000) == 0x2000) return OpCode::CALL_NNN;
+    if ((instruction & 0xF000) == 0x3000) return OpCode::SE_Vx_KK;
+    if ((instruction & 0xF000) == 0x4000) return OpCode::SNE_Vx_KK;
+    if ((instruction & 0xF00F) == 0x5000) return OpCode::SE_Vx_Vy;
+    if ((instruction & 0xF000) == 0x6000) return OpCode::LD_Vx_KK;
+    if ((instruction & 0xF000) == 0x7000) return OpCode::ADD_Vx_KK;
+    if ((instruction & 0xF00F) == 0x8000) return OpCode::LD_Vx_Vy;
+    if ((instruction & 0xF00F) == 0x8001) return OpCode::OR_Vx_Vy;
+    if ((instruction & 0xF00F) == 0x8002) return OpCode::AND_Vx_Vy;
+    if ((instruction & 0xF00F) == 0x8003) return OpCode::XOR_Vx_Vy;
+    if ((instruction & 0xF00F) == 0x8004) return OpCode::ADD_Vx_Vy;
+    if ((instruction & 0xF00F) == 0x8005) return OpCode::SUB_Vx_Vy;
+    if ((instruction & 0xF00F) == 0x8006) return OpCode::SHR_Vx;
+    if ((instruction & 0xF00F) == 0x8007) return OpCode::SUBN_Vx_Vy;
+    if ((instruction & 0xF00F) == 0x800E) return OpCode::SHL_Vx;
+    if ((instruction & 0xF00F) == 0x9000) return OpCode::SNE_Vx_Vy;
+    if ((instruction & 0xF000) == 0xA000) return OpCode::LD_I_NNN;
+    if ((instruction & 0xF000) == 0xB000) return OpCode::JP_V0_NNN;
+    if ((instruction & 0xF000) == 0xC000) return OpCode::RND_Vx_KK;
+    if ((instruction & 0xF000) == 0xD000) return OpCode::DRW_Vx_Vy_N;
+    if ((instruction & 0xF0FF) == 0xE09E) return OpCode::SKP_Vx;
+    if ((instruction & 0xF0FF) == 0xE0A1) return OpCode::SKNP_Vx;
+    if ((instruction & 0xF0FF) == 0xF007) return OpCode::LD_Vx_DT;
+    if ((instruction & 0xF0FF) == 0xF00A) return OpCode::LD_Vx_K;
+    if ((instruction & 0xF0FF) == 0xF015) return OpCode::LD_DT_Vx;
+    if ((instruction & 0xF0FF) == 0xF018) return OpCode::LD_ST_Vx;
+    if ((instruction & 0xF0FF) == 0xF01E) return OpCode::ADD_I_Vx;
+    if ((instruction & 0xF0FF) == 0xF029) return OpCode::LD_F_Vx;
+    if ((instruction & 0xF0FF) == 0xF033) return OpCode::LD_B_Vx;
+    if ((instruction & 0xF0FF) == 0xF055) return OpCode::LD_I_Vx;
+    if ((instruction & 0xF0FF) == 0xF065) return OpCode::LD_Vx_I;
+
+    // Although there is no NOOP opcode, we'll use it to signal an invalid instruction
+    return OpCode::NOOP;
 }
 
 void Interpreter::execute_instruction(u16 instruction)
@@ -75,6 +114,7 @@ void Interpreter::execute_instruction(u16 instruction)
     const auto kk  =  instruction & 0x00FF;
     const auto n   =  instruction & 0x000F;
     
+    printf("0x%04x: %04x\n", program_counter, instruction);
     switch (opcode(instruction))
     {
         // 00E0: Clear the display
@@ -269,26 +309,28 @@ void Interpreter::execute_instruction(u16 instruction)
                     // Process bits left-to-right
                     const auto sprite_px = sprite_byte & (0x80 >> bit);
 
-                    // Erasing a pixel involves drawing it again, so only process pixels that are not 0
-                    if (sprite_px != 0)
+                    // Erasing a pixel involves drawing it again, so only
+                    // process pixels that are not 0
+                    if (sprite_px == 0) continue;
+
+                    auto px_x = registers_v[x] + bit;
+                    auto px_y = registers_v[y] + row;
+
+                    // As per Cowgod's desc, wrap pixels if they overflow
+                    // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#Dxyn
+                    if (px_x >= framebuffer.kWidth)  px_x %= framebuffer.kWidth;
+                    if (px_y >= framebuffer.kHeight) px_y %= framebuffer.kHeight;
+  
+                    auto frame_px = framebuffer.pixels + px_x + px_y * framebuffer.kWidth;           
+                    if (*frame_px == 1)
                     {
-                        auto px_x = registers_v[x] + bit;
-                        auto px_y = registers_v[y] + row;
-
-                        // As per Cowgod's desc, wrap pixels if they overflow past frame bounds
-                        // http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#Dxyn
-                        if (px_x >= framebuffer.kWidth)  px_x %= framebuffer.kWidth;
-                        if (px_y >= framebuffer.kHeight) px_y %= framebuffer.kHeight;
-
-                        auto frame_px = framebuffer.pixels + px_x + px_y * framebuffer.kWidth;
-
                         // Vf is used to indicate collisions
                         // It should be set to 1 if any 'on' pixels will be changed to 'off'
-                        if (*frame_px == 1) registers_v[0xF] = 1;
-
-                        // Pixels are drawn by XOR-ing
-                        *frame_px ^= 1;
+                        registers_v[0xF] = 1;
                     }
+
+                    // Pixels are drawn by XOR-ing
+                    *frame_px ^= 1;
                 }
             }
             break;
@@ -322,11 +364,19 @@ void Interpreter::execute_instruction(u16 instruction)
         }
 
         // Fx0A: Wait for a key press, store the value of the key in Vx
-        //case OpCode::LD_Vx_K:
-        //{
-        //    // TODO: Implement. Remove from default:
-        //    break;
-        //}
+        case OpCode::LD_Vx_K:
+        {
+            for (auto i = 0; i < 16; i++)
+            {
+                if (key_state[i])
+                {
+                    registers_v[x] = i;
+                    program_counter += 2;
+                    break;
+                }
+            }
+            return;
+        }
 
         // Fx15: Set delay timer = Vx
         case OpCode::LD_DT_Vx:
@@ -388,7 +438,6 @@ void Interpreter::execute_instruction(u16 instruction)
             break;
         }
 
-        case OpCode::LD_Vx_K:
         default: // NOOP
         {
             printf("Unrecognised instruction @ 0x%04x: %04x\n", program_counter, instruction);
@@ -398,49 +447,7 @@ void Interpreter::execute_instruction(u16 instruction)
         }
     }
 
-    printf("0x%04x: %04x\n", program_counter, instruction);
     program_counter += 2;
-}
-
-OpCode Interpreter::opcode(u16 instruction) const
-{
-    if  (instruction == 0x00E0)            return OpCode::CLS;
-    if  (instruction == 0x00EE)            return OpCode::RET;
-    if ((instruction &  0xF000) == 0x1000) return OpCode::JP_NNN;
-    if ((instruction &  0xF000) == 0x2000) return OpCode::CALL_NNN;
-    if ((instruction &  0xF000) == 0x3000) return OpCode::SE_Vx_KK;
-    if ((instruction &  0xF000) == 0x4000) return OpCode::SNE_Vx_KK;
-    if ((instruction &  0xF00F) == 0x5000) return OpCode::SE_Vx_Vy;
-    if ((instruction &  0xF000) == 0x6000) return OpCode::LD_Vx_KK;
-    if ((instruction &  0xF000) == 0x7000) return OpCode::ADD_Vx_KK;
-    if ((instruction &  0xF00F) == 0x8000) return OpCode::LD_Vx_Vy;
-    if ((instruction &  0xF00F) == 0x8001) return OpCode::OR_Vx_Vy;
-    if ((instruction &  0xF00F) == 0x8002) return OpCode::AND_Vx_Vy;
-    if ((instruction &  0xF00F) == 0x8003) return OpCode::XOR_Vx_Vy;
-    if ((instruction &  0xF00F) == 0x8004) return OpCode::ADD_Vx_Vy;
-    if ((instruction &  0xF00F) == 0x8005) return OpCode::SUB_Vx_Vy;
-    if ((instruction &  0xF00F) == 0x8006) return OpCode::SHR_Vx;
-    if ((instruction &  0xF00F) == 0x8007) return OpCode::SUBN_Vx_Vy;
-    if ((instruction &  0xF00F) == 0x800E) return OpCode::SHL_Vx;
-    if ((instruction &  0xF00F) == 0x9000) return OpCode::SNE_Vx_Vy;
-    if ((instruction &  0xF000) == 0xA000) return OpCode::LD_I_NNN;
-    if ((instruction &  0xF000) == 0xB000) return OpCode::JP_V0_NNN;
-    if ((instruction &  0xF000) == 0xC000) return OpCode::RND_Vx_KK;
-    if ((instruction &  0xF000) == 0xD000) return OpCode::DRW_Vx_Vy_N;
-    if ((instruction &  0xF0FF) == 0xE09E) return OpCode::SKP_Vx;
-    if ((instruction &  0xF0FF) == 0xE0A1) return OpCode::SKNP_Vx;
-    if ((instruction &  0xF0FF) == 0xF007) return OpCode::LD_Vx_DT;
-    if ((instruction &  0xF0FF) == 0xF00A) return OpCode::LD_Vx_K;
-    if ((instruction &  0xF0FF) == 0xF015) return OpCode::LD_DT_Vx;
-    if ((instruction &  0xF0FF) == 0xF018) return OpCode::LD_ST_Vx;
-    if ((instruction &  0xF0FF) == 0xF01E) return OpCode::ADD_I_Vx;
-    if ((instruction &  0xF0FF) == 0xF029) return OpCode::LD_F_Vx;
-    if ((instruction &  0xF0FF) == 0xF033) return OpCode::LD_B_Vx;
-    if ((instruction &  0xF0FF) == 0xF055) return OpCode::LD_I_Vx;
-    if ((instruction &  0xF0FF) == 0xF065) return OpCode::LD_Vx_I;
-
-    // Although there is no NOOP opcode, we'll use it to signal an invalid instruction
-    return OpCode::NOOP;
 }
 
 void Interpreter::load_font_sprites()
