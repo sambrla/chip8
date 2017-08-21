@@ -1,10 +1,14 @@
+#include <chrono>
 #include <iostream>
 #include <map>
+#include <thread>
 #include <SFML/Graphics.hpp>
 #include "interpreter.hpp"
 
-// The original Chip-8 resolution was 64x32. Scale that by a factor of ?
-#define SCALE 10
+#define SCALE 10 // The original Chip-8 resolution was 64x32. Scale that by a factor of ?
+#define EMU_SPEED_HZ 120
+
+typedef std::chrono::steady_clock Clock;
 
 void draw_frame(sf::RenderWindow& win, const Interpreter::FrameBuffer* frame)
 {
@@ -14,10 +18,13 @@ void draw_frame(sf::RenderWindow& win, const Interpreter::FrameBuffer* frame)
         for (auto x = 0, i = 0; x < frame->kWidth; x++, i = x + y * frame->kWidth)
         {
             auto px = frame->pixels + i;
+
+            // Only process 'on' pixels
             if (*px != 1) continue;
-    
+
             auto quad = &vertices[i * 4];
 
+            // TODO: Scale correctly for high-DPI displays
             quad[0].position = sf::Vector2f(x * SCALE,         y * SCALE);
             quad[1].position = sf::Vector2f(x * SCALE + SCALE, y * SCALE);
             quad[2].position = sf::Vector2f(x * SCALE + SCALE, y * SCALE + SCALE);
@@ -41,36 +48,48 @@ int main(int argc, char** argv)
     }
 
     // Map SFML key codes to Chip-8 hex keypad
-    const std::map<sf::Keyboard::Key, unsigned char> key_map
+    const std::map<sf::Keyboard::Key, Interpreter::KeyCode> key_map
     {
-        { sf::Keyboard::Key::Num1, 0x1 },
-        { sf::Keyboard::Key::Num2, 0x2 },
-        { sf::Keyboard::Key::Num3, 0x3 },
-        { sf::Keyboard::Key::Num4, 0xC },
-        { sf::Keyboard::Key::Q,    0x4 },
-        { sf::Keyboard::Key::E,    0x5 },
-        { sf::Keyboard::Key::A,    0x6 },
-        { sf::Keyboard::Key::R,    0xD },
-        { sf::Keyboard::Key::W,    0x7 },
-        { sf::Keyboard::Key::S,    0x8 },
-        { sf::Keyboard::Key::D,    0x9 },
-        { sf::Keyboard::Key::F,    0xE },
-        { sf::Keyboard::Key::Z,    0xA },
-        { sf::Keyboard::Key::X,    0x0 },
-        { sf::Keyboard::Key::C,    0xB },
-        { sf::Keyboard::Key::V,    0xF }
+        { sf::Keyboard::Key::Num1, Interpreter::KeyCode::Key1 },
+        { sf::Keyboard::Key::Num2, Interpreter::KeyCode::Key2 },
+        { sf::Keyboard::Key::Num3, Interpreter::KeyCode::Key3 },
+        { sf::Keyboard::Key::Num4, Interpreter::KeyCode::KeyC },
+        { sf::Keyboard::Key::Q,    Interpreter::KeyCode::Key4 },
+        { sf::Keyboard::Key::E,    Interpreter::KeyCode::Key5 },
+        { sf::Keyboard::Key::A,    Interpreter::KeyCode::Key6 },
+        { sf::Keyboard::Key::R,    Interpreter::KeyCode::KeyD },
+        { sf::Keyboard::Key::W,    Interpreter::KeyCode::Key7 },
+        { sf::Keyboard::Key::S,    Interpreter::KeyCode::Key8 },
+        { sf::Keyboard::Key::D,    Interpreter::KeyCode::Key9 },
+        { sf::Keyboard::Key::F,    Interpreter::KeyCode::KeyE },
+        { sf::Keyboard::Key::Z,    Interpreter::KeyCode::KeyA },
+        { sf::Keyboard::Key::X,    Interpreter::KeyCode::Key0 },
+        { sf::Keyboard::Key::C,    Interpreter::KeyCode::KeyB },
+        { sf::Keyboard::Key::V,    Interpreter::KeyCode::KeyF }
     };
 
     Interpreter chip8;
     chip8.load_rom(argv[1]);
-    
-    sf::RenderWindow win(sf::VideoMode(64*SCALE, 32*SCALE), "Chip-8");
-    win.setFramerateLimit(60); // TODO: fix speed implementation
-    win.setKeyRepeatEnabled(false);
 
-    while (win.isOpen())
+    sf::RenderWindow win(sf::VideoMode(64 * SCALE, 32 * SCALE), "Chip-8");
+    win.setKeyRepeatEnabled(false);
+    win.setTitle("Chip-8 ~ " + std::to_string(EMU_SPEED_HZ) + "Hz");
+
+    // There's little doc on Chip-8 timing save for 60 Hz timers
+    // TODO: Allow speed to be modified by key-combo
+    const auto timer_refresh_rate = std::chrono::microseconds(1000000 / 60); // 60 Hz
+    auto main_refresh_rate = std::chrono::microseconds(1000000 / EMU_SPEED_HZ);
+
+    auto start = Clock::now();
+    auto next_timer = start;
+    auto next_frame = start;
+    sf::Event event;
+    for (;;)
     {
-        sf::Event event;
+        start = Clock::now();
+        chip8.cycle();
+
+        // Process input
         while (win.pollEvent(event))
         {
             switch (event.type)
@@ -78,7 +97,7 @@ int main(int argc, char** argv)
                 case sf::Event::Closed:
                 {
                     win.close();
-                    break;
+                    return 0;
                 }
                 case sf::Event::KeyPressed:
                 {
@@ -99,13 +118,23 @@ int main(int argc, char** argv)
                     break;
                 }
                 default:
+                    // Ignore other event types
                     break;
             }
         }
 
-        win.clear(sf::Color::Black);
-        chip8.cycle();
-        draw_frame(win, chip8.frame());
-        win.display();
+        if (start >= next_timer)
+        {
+            chip8.cycle_timers();
+            next_timer = start + timer_refresh_rate;
+
+            // Draw the screen at the same cadence as the timer refresh, i.e. 60 Hz
+            win.clear(sf::Color::Black);
+            draw_frame(win, chip8.frame());
+            win.display();
+        }
+
+        next_frame = start + main_refresh_rate;
+        std::this_thread::sleep_until(next_frame);
     }
 }

@@ -4,7 +4,7 @@
 #include <string>
 
 #define MEMORY_SIZE 4096
-#define PROGRAM_START_ADDR 512 // Most progs start at 0x200 (512)
+#define PROGRAM_START_ADDR 0x200 // Most progs start at 0x200 (512)
 
 class Interpreter
 {
@@ -12,31 +12,58 @@ class Interpreter
     typedef unsigned char   u8;
     typedef unsigned short u16;
 
+    enum KeyCode
+    {
+        Key0 = 0,
+        Key1,
+        Key2,
+        Key3,
+        Key4,
+        Key5,
+        Key6,
+        Key7,
+        Key8,
+        Key9,
+        KeyA,
+        KeyB,
+        KeyC,
+        KeyD,
+        KeyE,
+        KeyF
+    };
+
     struct FrameBuffer
     {
         static constexpr unsigned kWidth  = 64;
         static constexpr unsigned kHeight = 32;
         u8 pixels[kWidth * kHeight]{};
-    };    
-                                                                               
+    };
+
     Interpreter();
+
+    // Reset interpreter state
+    void reset();
 
     // Execute a single 'cpu' cycle
     void cycle();
+
+    // Update sound and delay timers. This should occur at 60Hz
+    void cycle_timers();
 
     // Load rom into interpreter memory
     void load_rom(std::string rom_path);
 
     // Hex keypad input handling. Keycode must be between 0x0 and 0xF (inc).
-    void press_key(u8 keycode);
-    void release_key(u8 keycode);
+    void press_key(KeyCode key);
+    void release_key(KeyCode key);
 
-    // Current buzzer state
+    bool should_draw() const;
+
     // TODO: Implement
-    bool buzzer_active() const;
+    bool should_beep() const;
 
     // Current framebuffer content
-    const FrameBuffer* frame() const;
+    const FrameBuffer* frame();
 
     // Debugging
     void dump_registers() const;
@@ -50,11 +77,11 @@ class Interpreter
         RET,
         JP_NNN,
         CALL_NNN,
-        SE_Vx_KK,
-        SNE_Vx_KK,
+        SE_Vx_NN,
+        SNE_Vx_NN,
         SE_Vx_Vy,
-        LD_Vx_KK,
-        ADD_Vx_KK,
+        LD_Vx_NN,
+        ADD_Vx_NN,
         LD_Vx_Vy,
         OR_Vx_Vy,
         AND_Vx_Vy,
@@ -67,7 +94,7 @@ class Interpreter
         SNE_Vx_Vy,
         LD_I_NNN,
         JP_V0_NNN,
-        RND_Vx_KK,
+        RND_Vx_NN,
         DRW_Vx_Vy_N,
         SKP_Vx,
         SKNP_Vx,
