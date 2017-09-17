@@ -2,6 +2,7 @@
 #include <map>
 #include <thread>
 #include <SFML/Graphics.hpp>
+#include "df.hpp"
 #include "interpreter.hpp"
 
 #define IPC_TITLE(ipc) "Chip-8 : " + std::to_string(ipc) + " IPC"
@@ -78,6 +79,21 @@ int main(int argc, char** argv)
     sf::RenderWindow win(sf::VideoMode(64 * SCALE, 32 * SCALE), IPC_TITLE(ipc));
     win.setKeyRepeatEnabled(false);
 
+    auto showDF = false;
+    auto s = DF::Settings();
+    s.x                 = 20;
+    s.y                 = 210;
+    s.width             = 600;
+    s.height            = 100;
+    s.scale             = 8;
+    s.scaleUnit         = " ms"; // us => \xb5s
+    s.lineColor         = sf::Color::Cyan;
+    s.overflowColor     = sf::Color(130, 40, 40);
+    s.highlightOverflow = true;
+    s.transparency      = 0.75f;
+    s.fontName          = "SourceCodePro-Regular.otf";
+    DF df(s);
+
     sf::Clock timer;
     const auto hz = sf::milliseconds(1000/60); // 60 Hz, 16.6 ms
     for (;;)
@@ -119,6 +135,10 @@ int main(int argc, char** argv)
                         ipc = std::min(++ipc, IPC_MAX);
                         win.setTitle(IPC_TITLE(ipc));
                     }
+                    if (event.key.code == sf::Keyboard::F12)
+                    {
+                        if ((showDF = !showDF)) df.clear();
+                    }
                      
                     auto key = Keymap.find(event.key.code);
                     if (key != Keymap.end()) vm.pressKey(key->second);
@@ -138,6 +158,13 @@ int main(int argc, char** argv)
         
         win.clear();
         drawFrame(&win, vm.frame());
+
+        if (showDF)
+        {
+            // Log how long this cycle took 
+            df.addDataPoint(timer.getElapsedTime().asMicroseconds() * 0.001f);
+            df.drawGraph(&win);
+        }
         win.display();
             
         // Sleep until next cycle should execute. Will not sleep if n <= 0
