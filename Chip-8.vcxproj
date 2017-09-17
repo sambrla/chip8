@@ -19,10 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\df.cpp" />
+    <ClCompile Include="src\pclock.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\interpreter.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\df.hpp" />
+    <ClInclude Include="src\pclock.hpp" />
     <ClInclude Include="src\interpreter.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

@@ -48,26 +48,24 @@ class Interpreter
     void cycle();
 
     // Update sound and delay timers. This should occur at 60Hz
-    void cycle_timers();
+    void cycleTimers();
 
     // Load rom into interpreter memory
-    void load_rom(std::string rom_path);
+    void load(std::string romPath);
 
     // Hex keypad input handling. Keycode must be between 0x0 and 0xF (inc).
-    void press_key(KeyCode key);
-    void release_key(KeyCode key);
+    void pressKey(KeyCode key);
+    void releaseKey(KeyCode key);
 
-    bool should_draw() const;
-
-    // TODO: Implement
-    bool should_beep() const;
+        // TODO: Implement
+    bool shouldBeep() const;
 
     // Current framebuffer content
-    const FrameBuffer* frame();
+    const FrameBuffer* frame() const;
 
     // Debugging
-    void dump_registers() const;
-    void dump_memory(unsigned bytes, unsigned offset = 0) const;
+    void dumpRegisters() const;
+    void dumpMemory(unsigned bytes, unsigned offset = 0) const;
 
   private:
     enum class OpCode
@@ -111,20 +109,20 @@ class Interpreter
     };
 
      u8 mem[MEMORY_SIZE]{/* value init */};
-     u8 registers_v[16]{};
-    u16 registers_i = 0;
-     u8 registers_sound_timer = 0;
-     u8 registers_delay_timer = 0;
+     u8 registersV[16]{};
+    u16 registersI = 0;
+     u8 registersSoundTimer = 0;
+     u8 registersDelayTimer = 0;
     u16 stack[16]{};
-     u8 stack_pointer = 0;
-    u16 program_counter = PROGRAM_START_ADDR;
+     u8 stackPointer = 0;
+    u16 programCounter = PROGRAM_START_ADDR;
 
     FrameBuffer framebuffer;
-    bool key_state[16]{};
+    bool keyState[16]{};
 
     OpCode opcode(u16 instruction) const;
-    void execute_instruction(u16 instruction);
-    void load_font_sprites();
+    void executeInstruction(u16 instruction);
+    void createFontSprites();
 };
 
 #endif // CHIP8_INTERPRETER_H_
