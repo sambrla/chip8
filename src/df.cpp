@@ -2,15 +2,11 @@
 #include <sstream>
 #include <SFML/Graphics.hpp>
 #include "df.hpp"
+#include <iostream>
 
 DF::DF(DF::Settings settings)
 {
     applySettings(settings);
-}
-
-DF::Settings DF::settings() const
-{
-    return s;
 }
 
 void DF::applySettings(Settings settings)
@@ -19,24 +15,31 @@ void DF::applySettings(Settings settings)
     createGraph();
 }
 
+DF::Settings DF::settings() const
+{
+    return s;
+}
+
 void DF::addDataPoint(float dp)
 {
     average = (average * n + dp) / (n + 1);
     n++;
 
+    // x is set to 0 as it will be overwritten
     sf::Vertex v(sf::Vector2f(
-        0, // Will be overwritten
-        s.y + s.height - dp * (s.height / s.scale)), s.lineColor);
+        0,
+        s.y + s.height - dp * (s.height / float(s.vscale))), s.lineColor);
     points.push_front(v);
 
     // The collection should not exceed the width of the graph area
-    if (points.size() > s.width) points.pop_back();
+    if (points.size() > s.width)
+        points.pop_back();
 }
 
 void DF::drawGraph(sf::RenderWindow* win)
 {
     win->draw(graphBorder);
-    win->draw(graphLine);     
+    win->draw(graphLine);
 
     sf::VertexArray data(sf::LineStrip, points.size());
     data.clear();
@@ -52,16 +55,9 @@ void DF::drawGraph(sf::RenderWindow* win)
         {
             // Clamp points that fall outside drawGraph scale
             p.position.y = s.y;
-
-            if (s.highlightOverflow)
-            {
-                overflow.setSize(sf::Vector2f(8, s.height));
-                overflow.setPosition(p.position.x - 4, s.y);
-                overflow.setFillColor(s.overflowColor);
-                win->draw(overflow);
-            }
+            p.color = sf::Color::Red;
         }
-        
+
         data.append(p);
     }
 
@@ -69,8 +65,8 @@ void DF::drawGraph(sf::RenderWindow* win)
     win->draw(axis1);
     win->draw(axis2);
 
-    stat.setString("Avg " + toDecimalString(average, 1) + s.scaleUnit
-        + " (" + std::to_string(n) + " samples)");
+    stat.setString(std::to_string(n) + " samples, mean: "
+        + toDecimalString(average, 2) + s.vscaleLabel);
     win->draw(stat);
 }
 
@@ -83,10 +79,10 @@ void DF::clear()
 
 void DF::createGraph()
 {
-    graphBorder.setSize(sf::Vector2f(s.width, s.height));
     graphBorder.setPosition(s.x, s.y);
-    graphBorder.setOutlineColor(sf::Color::White);
+    graphBorder.setSize(sf::Vector2f(s.width, s.height));
     graphBorder.setOutlineThickness(1);
+    graphBorder.setOutlineColor(sf::Color::White);
     graphBorder.setFillColor(sf::Color(0, 0, 0,
         std::min(1.0f, std::max(0.0f, s.transparency)) * 255));
 
@@ -96,34 +92,34 @@ void DF::createGraph()
     graphLine.append(
         sf::Vertex(sf::Vector2f(
             s.x,
-            s.y + s.height / 2), sf::Color::White));
+            s.y + s.height * 0.5f), sf::Color::White));
     graphLine.append(
         sf::Vertex(sf::Vector2f(
             s.x + s.width,
-            s.y + s.height / 2), sf::Color::White));
+            s.y + s.height * 0.5f), sf::Color::White));
 
     if (font.loadFromFile(s.fontName))
     {
         stat.setFont(font);
         stat.setFillColor(sf::Color::White);
-        stat.setCharacterSize(11);
+        stat.setCharacterSize(s.height * 0.125f);
         stat.setPosition(sf::Vector2f(s.x + 4, s.y));
 
         axis1.setFont(font);
         axis1.setFillColor(sf::Color::White);
-        axis1.setCharacterSize(11);
-        axis1.setString(toDecimalString(s.scale, 0) + s.scaleUnit);
+        axis1.setCharacterSize(stat.getCharacterSize());
+        axis1.setString(toDecimalString(s.vscale, 0) + s.vscaleLabel);
         axis1.setPosition(sf::Vector2f(
             s.x + s.width - axis1.getLocalBounds().width - 8,
             s.y));
 
         axis2.setFont(font);
         axis2.setFillColor(sf::Color::White);
-        axis2.setCharacterSize(11);
-        axis2.setString(toDecimalString(s.scale / 2, 0) + s.scaleUnit);
+        axis2.setCharacterSize(stat.getCharacterSize());
+        axis2.setString(toDecimalString(s.vscale * 0.5f, 0) + s.vscaleLabel);
         axis2.setPosition(sf::Vector2f(
-            s.x + s.width - axis1.getLocalBounds().width - 8,
-            s.y + s.height / 2));
+            s.x + s.width - axis2.getLocalBounds().width - 8,
+            s.y + s.height * 0.5f));
     }
 }
 
