@@ -52,14 +52,9 @@ void Interpreter::load(std::string romPath)
     stream.close();
 }
 
-void Interpreter::pressKey(KeyCode key)
+void Interpreter::setKeyState(KeyCode key, bool isPressed)
 {
-    keyState[key] = true;
-}
-
-void Interpreter::releaseKey(KeyCode key)
-{
-    keyState[key] = false;
+    keyState[key] = isPressed;
 }
 
 bool Interpreter::shouldBeep() const
@@ -122,7 +117,7 @@ void Interpreter::executeInstruction(u16 instruction) // Execute
     const auto nnn =  instruction & 0x0FFF;
     const auto nn  =  instruction & 0x00FF;
     const auto n   =  instruction & 0x000F;
-       
+
     //printf("0x%04x: %04x\n", programCounter, instruction);
     switch (opcode(instruction))
     {

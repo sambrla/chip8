@@ -1,9 +1,13 @@
 # Roms
 roms/
 
+# Fonts
+*.otf
+
 # Build results
 build/
 bin/
+*.out
 
 # Visual Studio dirs/files
 .vs/

@@ -1,5 +1,5 @@
-#ifndef CHIP8_INTERPRETER_H_
-#define CHIP8_INTERPRETER_H_
+#ifndef INTERPRETER_H_
+#define INTERPRETER_H_
 
 #include <string>
 
@@ -47,17 +47,16 @@ class Interpreter
     // Execute a single 'cpu' cycle
     void cycle();
 
-    // Update sound and delay timers. This should occur at 60Hz
+    // Update sound and delay timers. This should occur at 60 Hz
     void cycleTimers();
 
     // Load rom into interpreter memory
     void load(std::string romPath);
 
-    // Hex keypad input handling. Keycode must be between 0x0 and 0xF (inc).
-    void pressKey(KeyCode key);
-    void releaseKey(KeyCode key);
+    // Hex keypad key handling
+    void setKeyState(KeyCode key, bool isPressed);
 
-        // TODO: Implement
+    // TODO: Implement
     bool shouldBeep() const;
 
     // Current framebuffer content
@@ -125,4 +124,4 @@ class Interpreter
     void createFontSprites();
 };
 
-#endif // CHIP8_INTERPRETER_H_
+#endif // INTERPRETER_H_

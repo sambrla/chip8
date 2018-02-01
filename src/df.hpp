@@ -1,8 +1,8 @@
-#ifndef CHIP8_DF_H_
-#define CHIP8_DF_H_
+#ifndef DF_H_
+#define DF_H_
 
 #include <deque>
-#include <SFML/Graphics/RenderWindow.hpp>
+#include <SFML/Graphics.hpp>
 
 // Quick and dirty class to display diagnostic data. Requires SFML
 class DF
@@ -12,9 +12,9 @@ public:
     {
         unsigned  x         = 0;
         unsigned  y         = 0;
-        unsigned  height    = 0;
-        unsigned  width     = 0;
-        unsigned  vscale    = 1;
+        unsigned  height    = 200;
+        unsigned  width     = 400;
+        unsigned  vscale    = 20;
         sf::Color lineColor = sf::Color::White;
 
         // Corresponding font should be located in project dir
@@ -23,13 +23,14 @@ public:
         std::string vscaleLabel;
 
         // Background transparency; between 0 (transparent) and 1 (opaque)
-        float transparency = 0;
+        float transparency = 1;
     };
 
-    explicit DF(Settings settings);
+    DF();
+    DF(Settings settings);
 
     Settings settings() const;
-    void applySettings(Settings s);
+    void applySettings(const Settings s);
     void addDataPoint(float dp);
     void drawGraph(sf::RenderWindow* win);
     void clear();
@@ -50,4 +51,4 @@ private:
     static std::string toDecimalString(float f, char precision);
 };
 
-#endif // CHIP8_DF_H_
+#endif // DF_H_

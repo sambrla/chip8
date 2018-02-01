@@ -1,15 +1,17 @@
 #include <iomanip>
 #include <sstream>
-#include <SFML/Graphics.hpp>
 #include "df.hpp"
-#include <iostream>
+
+DF::DF()
+{
+}
 
 DF::DF(DF::Settings settings)
 {
     applySettings(settings);
 }
 
-void DF::applySettings(Settings settings)
+void DF::applySettings(const Settings settings)
 {
     s = settings;
     createGraph();
@@ -103,14 +105,14 @@ void DF::createGraph()
         stat.setFont(font);
         stat.setFillColor(sf::Color::White);
         stat.setCharacterSize(s.height * 0.125f);
-        stat.setPosition(sf::Vector2f(s.x + 4, s.y));
+        stat.setPosition(sf::Vector2f(s.x + 8, s.y));
 
         axis1.setFont(font);
         axis1.setFillColor(sf::Color::White);
         axis1.setCharacterSize(stat.getCharacterSize());
         axis1.setString(toDecimalString(s.vscale, 0) + s.vscaleLabel);
         axis1.setPosition(sf::Vector2f(
-            s.x + s.width - axis1.getLocalBounds().width - 8,
+            s.x + s.width - axis1.getLocalBounds().width - 12,
             s.y));
 
         axis2.setFont(font);
@@ -118,7 +120,7 @@ void DF::createGraph()
         axis2.setCharacterSize(stat.getCharacterSize());
         axis2.setString(toDecimalString(s.vscale * 0.5f, 0) + s.vscaleLabel);
         axis2.setPosition(sf::Vector2f(
-            s.x + s.width - axis2.getLocalBounds().width - 8,
+            s.x + s.width - axis2.getLocalBounds().width - 12,
             s.y + s.height * 0.5f));
     }
 }
