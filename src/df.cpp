@@ -24,7 +24,9 @@ DF::Settings DF::settings() const
 
 void DF::addDataPoint(float dp)
 {
-    average = (average * n + dp) / (n + 1);
+    if (dp > max) max = dp;
+
+    mean = (mean * n + dp) / (n + 1);
     n++;
 
     // x is set to 0 as it will be overwritten
@@ -34,8 +36,7 @@ void DF::addDataPoint(float dp)
     points.push_front(v);
 
     // The collection should not exceed the width of the graph area
-    if (points.size() > s.width)
-        points.pop_back();
+    if (points.size() > s.width) points.pop_back();
 }
 
 void DF::drawGraph(sf::RenderWindow* win)
@@ -67,15 +68,16 @@ void DF::drawGraph(sf::RenderWindow* win)
     win->draw(axis1);
     win->draw(axis2);
 
-    stat.setString(std::to_string(n) + " samples, mean: "
-        + toDecimalString(average, 2) + s.vscaleLabel);
+    stat.setString("frame: " + std::to_string(n) + ", mean: "
+        + toDecimalString(mean, 2) + s.vscaleLabel + ", max: "
+        + toDecimalString(max,  2) + s.vscaleLabel);
     win->draw(stat);
 }
 
 void DF::clear()
 {
     points.clear();
-    average = 0;
+    mean = max = 0;
     n = 0;
 }
 

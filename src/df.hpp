@@ -38,7 +38,7 @@ public:
 private:
     Settings s;
     std::deque<sf::Vertex> points;
-    float average = 0;
+    float mean = 0, max = 0;
     unsigned n = 0;
 
     // Graph components
