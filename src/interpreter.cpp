@@ -28,9 +28,9 @@ void Interpreter::cycleTimers()
     if (registersSoundTimer > 0) registersSoundTimer--;
 }
 
-void Interpreter::load(std::string romPath)
+void Interpreter::loadRom(std::string path)
 {
-    std::ifstream stream(romPath, std::ios::binary);
+    std::ifstream stream(path, std::ios::binary);
     if (stream.is_open())
     {
         stream.seekg(0, stream.end);
@@ -38,18 +38,32 @@ void Interpreter::load(std::string romPath)
 
         if (len > MEMORY_SIZE - PROGRAM_START_ADDR)
         {
-            std::cerr << "Rom file too large!" << std::endl;
+            std::cerr << "Unable to load rom. File too large!" << std::endl;
             return;
         }
 
         stream.seekg(0);
         stream.read(reinterpret_cast<char*>(&mem[PROGRAM_START_ADDR]), len);
+        info.size = len;
     }
     else
     {
-        std::cerr << "Unable to open rom file: " << romPath << std::endl;
+        std::cerr << "Unable to open rom file @: " << path << std::endl;
     }
     stream.close();
+
+    // Extract path and file name
+    auto pos = path.find_last_of("/\\");
+    if (pos != std::string::npos)
+    {
+        info.path = path.substr(0, pos);
+        info.name = path.substr(pos+1);
+    }
+}
+
+const Interpreter::RomInfo* Interpreter::romInfo() const
+{
+    return &info;
 }
 
 void Interpreter::setKeyState(KeyCode key, bool isPressed)

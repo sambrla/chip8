@@ -32,6 +32,13 @@ class Interpreter
         KeyF
     };
 
+    struct RomInfo
+    {
+        unsigned size; // in bytes
+        std::string name;
+        std::string path;
+    };
+
     struct FrameBuffer
     {
         static constexpr unsigned kWidth  = 64;
@@ -51,7 +58,10 @@ class Interpreter
     void cycleTimers();
 
     // Load rom into interpreter memory
-    void load(std::string romPath);
+    void loadRom(std::string path);
+
+    // Info about rom file loaded into memory
+    const RomInfo* romInfo() const;
 
     // Hex keypad key handling
     void setKeyState(KeyCode key, bool isPressed);
@@ -107,7 +117,7 @@ class Interpreter
         NOOP
     };
 
-     u8 mem[MEMORY_SIZE]{/* value init */};
+     u8 mem[MEMORY_SIZE]{};
      u8 registersV[16]{};
     u16 registersI = 0;
      u8 registersSoundTimer = 0;
@@ -117,6 +127,7 @@ class Interpreter
     u16 programCounter = PROGRAM_START_ADDR;
 
     FrameBuffer framebuffer;
+    RomInfo info;
     bool keyState[16]{};
 
     OpCode opcode(u16 instruction) const;
