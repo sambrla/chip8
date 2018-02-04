@@ -4,11 +4,7 @@
 
 DF::DF()
 {
-}
-
-DF::DF(DF::Settings settings)
-{
-    applySettings(settings);
+    clear();
 }
 
 void DF::applySettings(const Settings settings)
@@ -39,7 +35,7 @@ void DF::addDataPoint(float dp)
     if (points.size() > s.width) points.pop_back();
 }
 
-void DF::drawGraph(sf::RenderWindow* win)
+void DF::draw(sf::RenderWindow* win)
 {
     win->draw(graphBorder);
     win->draw(graphLine);
@@ -68,7 +64,7 @@ void DF::drawGraph(sf::RenderWindow* win)
     win->draw(axis1);
     win->draw(axis2);
 
-    stat.setString("frame: " + std::to_string(n) + ", mean: "
+    stat.setString("samples: " + std::to_string(n) + ", mean: "
         + toDecimalString(mean, 2) + s.vscaleLabel + ", max: "
         + toDecimalString(max,  2) + s.vscaleLabel);
     win->draw(stat);

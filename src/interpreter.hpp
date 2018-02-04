@@ -4,17 +4,17 @@
 #include <string>
 
 #define MEMORY_SIZE 4096
-#define PROGRAM_START_ADDR 0x200 // Most progs start at 0x200 (512)
+#define PROG_START_ADDR 0x200 // Most progs start at 0x200 (512)
 
 class Interpreter
 {
   public:
-    typedef unsigned char   u8;
+    typedef unsigned char  u8;
     typedef unsigned short u16;
 
-    enum KeyCode
+    enum Keypad
     {
-        Key0 = 0,
+        Key0,
         Key1,
         Key2,
         Key3,
@@ -34,105 +34,47 @@ class Interpreter
 
     struct RomInfo
     {
-        unsigned size; // in bytes
+        unsigned size;
         std::string name;
         std::string path;
     };
 
     struct FrameBuffer
     {
-        static constexpr unsigned kWidth  = 64;
-        static constexpr unsigned kHeight = 32;
-        u8 pixels[kWidth * kHeight]{};
+        static constexpr unsigned Width  = 64;
+        static constexpr unsigned Height = 32;
+        u8 pixels[Width * Height]{};
     };
 
     Interpreter();
-
-    // Reset interpreter state
     void reset();
-
-    // Execute a single 'cpu' cycle
-    void cycle();
-
-    // Update sound and delay timers. This should occur at 60 Hz
-    void cycleTimers();
-
-    // Load rom into interpreter memory
     void loadRom(std::string path);
-
-    // Info about rom file loaded into memory
+    void cycle();
+    void cycleTimers();
+    void setKeyState(Keypad key, bool isPressed);
+    bool beepTriggered() const;
     const RomInfo* romInfo() const;
-
-    // Hex keypad key handling
-    void setKeyState(KeyCode key, bool isPressed);
-
-    // TODO: Implement
-    bool shouldBeep() const;
-
-    // Current framebuffer content
-    const FrameBuffer* frame() const;
-
-    // Debugging
-    void dumpRegisters() const;
-    void dumpMemory(unsigned bytes, unsigned offset = 0) const;
+    const FrameBuffer* frameBuffer() const;
 
   private:
-    enum class OpCode
-    {
-        SYS_NNN,
-        CLS,
-        RET,
-        JP_NNN,
-        CALL_NNN,
-        SE_Vx_NN,
-        SNE_Vx_NN,
-        SE_Vx_Vy,
-        LD_Vx_NN,
-        ADD_Vx_NN,
-        LD_Vx_Vy,
-        OR_Vx_Vy,
-        AND_Vx_Vy,
-        XOR_Vx_Vy,
-        ADD_Vx_Vy,
-        SUB_Vx_Vy,
-        SHR_Vx,
-        SUBN_Vx_Vy,
-        SHL_Vx,
-        SNE_Vx_Vy,
-        LD_I_NNN,
-        JP_V0_NNN,
-        RND_Vx_NN,
-        DRW_Vx_Vy_N,
-        SKP_Vx,
-        SKNP_Vx,
-        LD_Vx_DT,
-        LD_Vx_K,
-        LD_DT_Vx,
-        LD_ST_Vx,
-        ADD_I_Vx,
-        LD_F_Vx,
-        LD_B_Vx,
-        LD_I_Vx,
-        LD_Vx_I,
-        NOOP
-    };
-
-     u8 mem[MEMORY_SIZE]{};
-     u8 registersV[16]{};
-    u16 registersI = 0;
-     u8 registersSoundTimer = 0;
-     u8 registersDelayTimer = 0;
-    u16 stack[16]{};
-     u8 stackPointer = 0;
-    u16 programCounter = PROGRAM_START_ADDR;
-
-    FrameBuffer framebuffer;
-    RomInfo info;
     bool keyState[16]{};
+    RomInfo info;
+    FrameBuffer buffer;
 
-    OpCode opcode(u16 instruction) const;
-    void executeInstruction(u16 instruction);
-    void createFontSprites();
+    u8  mem[MEMORY_SIZE]{};
+    u8  registersV[16]{};
+    u16 registersI  = 0;
+    u8  registersST = 0;
+    u8  registersDT = 0;
+    u16 stack[16]{};
+    u8  stackPointer = 0;
+    u16 programCounter = PROG_START_ADDR;
+
+    void loadFontSprites();
+    void execute(u16 instruction);
+    void drawToBuffer(u8 x, u8 y, u8 n);
+    void dumpRegisters() const;
+    void dumpMemory(unsigned bytes, unsigned offset = 0) const;
 };
 
 #endif // INTERPRETER_H_

@@ -10,8 +10,8 @@ int main(int argc, char** argv)
     }
 
     Interpreter vm;
-    vm.load(argv[1]);
+    vm.loadRom(argv[1]);
 
-    Chip8 app{&vm};
+    Chip8 app(&vm);
     app.run();
 }

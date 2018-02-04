@@ -27,19 +27,17 @@ public:
     };
 
     DF();
-    DF(Settings settings);
-
     Settings settings() const;
     void applySettings(const Settings s);
     void addDataPoint(float dp);
-    void drawGraph(sf::RenderWindow* win);
+    void draw(sf::RenderWindow* win);
     void clear();
 
 private:
     Settings s;
     std::deque<sf::Vertex> points;
-    float mean = 0, max = 0;
-    unsigned n = 0;
+    float mean, max;
+    unsigned n;
 
     // Graph components
     sf::RectangleShape graphBorder;
