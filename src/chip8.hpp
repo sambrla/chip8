@@ -21,10 +21,10 @@ private:
         { sf::Keyboard::Key::Num3, Interpreter::Keypad::Key3 },
         { sf::Keyboard::Key::Num4, Interpreter::Keypad::KeyC },
         { sf::Keyboard::Key::Q,    Interpreter::Keypad::Key4 },
-        { sf::Keyboard::Key::E,    Interpreter::Keypad::Key5 },
-        { sf::Keyboard::Key::A,    Interpreter::Keypad::Key6 },
+        { sf::Keyboard::Key::E,    Interpreter::Keypad::Key6 },
+        { sf::Keyboard::Key::A,    Interpreter::Keypad::Key7 },
         { sf::Keyboard::Key::R,    Interpreter::Keypad::KeyD },
-        { sf::Keyboard::Key::W,    Interpreter::Keypad::Key7 },
+        { sf::Keyboard::Key::W,    Interpreter::Keypad::Key5 },
         { sf::Keyboard::Key::S,    Interpreter::Keypad::Key8 },
         { sf::Keyboard::Key::D,    Interpreter::Keypad::Key9 },
         { sf::Keyboard::Key::F,    Interpreter::Keypad::KeyE },
@@ -36,7 +36,7 @@ private:
 
     Interpreter *vm;
     DF diagGraph;
-    sf::RenderWindow win;
+    sf::RenderWindow window;
     bool showDiag = false;
     unsigned ipc; // Instructions per cycle
 

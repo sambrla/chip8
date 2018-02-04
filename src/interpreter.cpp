@@ -6,18 +6,20 @@
 #include <iostream>
 #include "interpreter.hpp"
 
+#define PROG_START_ADDR 0x200 // Most progs start at 0x200 (512)
+
 Interpreter::Interpreter()
 {
     loadFontSprites();
+    reset();
 }
 
 void Interpreter::reset()
 {
-    // TODO: Implement
-                std::fill(std::begin(mem)+PROG_START_ADDR, std::end(mem), 0);
-    std::fill(std::begin(registersV), std::end(registersV), 0);
-    std::fill(std::begin(stack), std::end(stack), 0);
+    std::fill(std::begin(registersV),    std::end(registersV),    0);
+    std::fill(std::begin(stack),         std::end(stack),         0);
     std::fill(std::begin(buffer.pixels), std::end(buffer.pixels), 0);
+    std::fill(std::begin(keyState),      std::end(keyState),      false);
 
     registersI     = 0;
     registersST    = 0;
@@ -28,6 +30,9 @@ void Interpreter::reset()
 
 void Interpreter::loadRom(std::string path)
 {
+    // Clear program memory
+    std::fill(std::begin(mem)+PROG_START_ADDR, std::end(mem), 0);
+
     std::ifstream stream(path, std::ios::binary);
     if (stream.is_open())
     {
@@ -63,9 +68,9 @@ void Interpreter::loadRom(std::string path)
 
 void Interpreter::cycle()
 {
-    const u16 instruction = mem[programCounter] << 8 | mem[programCounter + 1];
+    const u16 inst = mem[programCounter] << 8 | mem[programCounter + 1];
     programCounter += 2;
-    execute(instruction);
+    execute(inst);
 }
 
 // Timers should be decremented at a rate of 60 Hz
@@ -80,7 +85,7 @@ void Interpreter::setKeyState(Keypad key, bool isPressed)
     keyState[key] = isPressed;
 }
 
-bool Interpreter::beepTriggered() const
+bool Interpreter::isBuzzerOn() const
 {
     return registersST > 0;
 }
@@ -98,7 +103,7 @@ const Interpreter::FrameBuffer* Interpreter::frameBuffer() const
 void Interpreter::loadFontSprites()
 {
     // Each digit is represented by 5 bytes
-    const u8 hex[] = {
+    const u8 font[] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -118,7 +123,7 @@ void Interpreter::loadFontSprites()
     };
 
     // Copy into mem before PROG_START_ADDR, i.e. starting at 0x000
-    memcpy(mem, hex, sizeof(hex));
+    memcpy(mem, font, sizeof(font));
 }
 
 void Interpreter::execute(u16 instruction)
@@ -376,7 +381,7 @@ void Interpreter::drawToBuffer(u8 x, u8 y, u8 n)
             const auto spritePx = rowByte & (0x80 >> col);
             if (spritePx == 0)
             {
-                // Don't process 'off' px; a px is turned 'off' by re-drawing
+                // Ignore 'off' px; a px is turned 'off' by re-drawing
                 continue;
             }
 
@@ -389,6 +394,8 @@ void Interpreter::drawToBuffer(u8 x, u8 y, u8 n)
                 // Vf should be set to 1 if any 'on' px are changed to 'off'
                 registersV[0xF] = 1;
             }
+
+            // Px are drawn by XOR-ing
             *bufferPx ^= 1;
         }
     }
@@ -411,6 +418,6 @@ void Interpreter::dumpMemory(unsigned bytes, unsigned offset) const
     printf("memory\n");
     for (auto i = offset; i < offset + bytes; i += 2)
     {
-        printf("  0x%04x: %02X %02X\n", i, mem[i], mem[i + 1]);
+        printf("  0x%04x: %02X %02X\n", i, mem[i], mem[i+1]);
     }
 }

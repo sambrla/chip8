@@ -4,19 +4,19 @@
 #define WIN_TITLE(ipc) vm->romInfo()->name \
                        + " (" + std::to_string(60*ipc) + " inst/s)"
 
-#define SCALE   20 // The original Chip-8 res was 64x32
+#define SCALE   15 // The original Chip-8 res was 64x32
 #define IPC_MIN 0
-#define IPC_MAX 100
+#define IPC_MAX 200
 #define IPC_STD 9
 
 Chip8::Chip8(Interpreter *vm) :
     vm(vm), ipc(IPC_STD),
-    win(sf::VideoMode(64 * SCALE, 32 * SCALE), WIN_TITLE(IPC_STD))
+    window(sf::VideoMode(64 * SCALE, 32 * SCALE), WIN_TITLE(IPC_STD))
 {
     auto s = DF::Settings();
     s.x            = 20;
-    s.y            = win.getSize().y - 220;
-    s.width        = win.getSize().x - 40;
+    s.y            = window.getSize().y - 220;
+    s.width        = window.getSize().x - 40;
     s.height       = 200;
     s.lineColor    = sf::Color::Cyan;
     s.transparency = 0.8f;
@@ -34,13 +34,11 @@ void Chip8::run()
     for (;;)
     {
         timer.restart();
-
-        // The IPC value controls the effective emulation speed
         for (auto i = 0; i < ipc; i++)
         {
             vm->cycle();
         }
-        // Timers should be cycled at 60 Hz, so once every iteration
+        // Timers should be cycled at 60 Hz (once every iteration)
         vm->cycleTimers();
 
         // Update VM key state
@@ -49,43 +47,55 @@ void Chip8::run()
             vm->setKeyState(key.second, sf::Keyboard::isKeyPressed(key.first));
         }
 
-        // SFML event handling
+        // Handle non VM specific input
         sf::Event event;
-        while (win.pollEvent(event))
+        while (window.pollEvent(event))
         {
             switch (event.type)
             {
                 case sf::Event::Closed:
-                    win.close();
+                    window.close();
                     return;
 
                 case sf::Event::KeyPressed:
-                    // F3: decrease IPC
-                    if (event.key.code == sf::Keyboard::F3 && ipc > IPC_MIN)
+                    // Ctrl+<: decrease IPC
+                    if (event.key.control &&
+                        event.key.code == sf::Keyboard::Comma &&
+                        ipc > IPC_MIN)
                     {
                         ipc--;
-                        win.setTitle(WIN_TITLE(ipc));
+                        window.setTitle(WIN_TITLE(ipc));
                     }
-                    // F4: increase IPC
-                    if (event.key.code == sf::Keyboard::F4 && ipc < IPC_MAX)
+                    // Ctrl+>: increase IPC
+                    if (event.key.control &&
+                        event.key.code == sf::Keyboard::Period &&
+                        ipc < IPC_MAX)
                     {
                         ipc++;
-                        win.setTitle(WIN_TITLE(ipc));
+                        window.setTitle(WIN_TITLE(ipc));
                     }
                     break;
 
                 case sf::Event::KeyReleased:
-                    // F1: reset IPC
-                    if (event.key.code == sf::Keyboard::F1)
+                    // Ctrl+0: reset IPC
+                    if (event.key.control &&
+                        event.key.code == sf::Keyboard::Num0)
                     {
                         ipc = IPC_STD;
-                        win.setTitle(WIN_TITLE(ipc));
+                        window.setTitle(WIN_TITLE(ipc));
                     }
-                    // F8: toggle diagnostic graph
-                    if (event.key.code == sf::Keyboard::F8)
+                    // Ctrl+D: toggle diagnostic graph
+                    if (event.key.control &&
+                        event.key.code == sf::Keyboard::D)
                     {
                         showDiag = !showDiag;
                         if (!showDiag) diagGraph.clear();
+                    }
+                    // Ctrl+R: reset VM
+                    if (event.key.control &&
+                        event.key.code == sf::Keyboard::R)
+                    {
+                        vm->reset();
                     }
                     break;
 
@@ -94,18 +104,19 @@ void Chip8::run()
             }
         }
 
-        win.clear();
+        window.clear();
         drawFrame();
         if (showDiag)
         {
             // Log how long this cycle took (in ms)
             // Calling asMilliseconds doesn't produce the desired precision
-            diagGraph.addDataPoint(timer.getElapsedTime().asMicroseconds() * 0.001f);
-            diagGraph.draw(&win);
+            diagGraph.addDataPoint(
+                timer.getElapsedTime().asMicroseconds() * 0.001f);
+            diagGraph.draw(&window);
         }
-        win.display();
+        window.display();
 
-        // Maintain 60 Hz whenever possible. Will not sleep if n <= 0
+        // Maintain 60 Hz whenever possible. Will not sleep if val <= 0
         sf::sleep(hz - timer.getElapsedTime());
     }
 }
@@ -124,12 +135,12 @@ void Chip8::drawFrame()
             auto px = frame->pixels + i;
             if (*px == 1) // Only process pixels that are 'on'
             {
-                auto quad = &vertices[i * 4];
+                auto quad = &vertices[i*4];
 
-                quad[0].position = sf::Vector2f(x * SCALE,         y * SCALE);
-                quad[1].position = sf::Vector2f(x * SCALE + SCALE, y * SCALE);
-                quad[2].position = sf::Vector2f(x * SCALE + SCALE, y * SCALE + SCALE);
-                quad[3].position = sf::Vector2f(x * SCALE,         y * SCALE + SCALE);
+                quad[0].position = sf::Vector2f(x*SCALE,       y*SCALE);
+                quad[1].position = sf::Vector2f(x*SCALE+SCALE, y*SCALE);
+                quad[2].position = sf::Vector2f(x*SCALE+SCALE, y*SCALE+SCALE);
+                quad[3].position = sf::Vector2f(x*SCALE,       y*SCALE+SCALE);
 
                 quad[0].color = sf::Color::White;
                 quad[1].color = sf::Color::White;
@@ -138,5 +149,5 @@ void Chip8::drawFrame()
             }
         }
     }
-    win.draw(vertices);
+    window.draw(vertices);
 }

@@ -4,7 +4,6 @@
 #include <string>
 
 #define MEMORY_SIZE 4096
-#define PROG_START_ADDR 0x200 // Most progs start at 0x200 (512)
 
 class Interpreter
 {
@@ -43,7 +42,7 @@ class Interpreter
     {
         static constexpr unsigned Width  = 64;
         static constexpr unsigned Height = 32;
-        u8 pixels[Width * Height]{};
+        u8 pixels[Width * Height];
     };
 
     Interpreter();
@@ -52,23 +51,23 @@ class Interpreter
     void cycle();
     void cycleTimers();
     void setKeyState(Keypad key, bool isPressed);
-    bool beepTriggered() const;
+    bool isBuzzerOn() const;
     const RomInfo* romInfo() const;
     const FrameBuffer* frameBuffer() const;
 
   private:
-    bool keyState[16]{};
+    bool keyState[16];
     RomInfo info;
     FrameBuffer buffer;
 
     u8  mem[MEMORY_SIZE]{};
-    u8  registersV[16]{};
-    u16 registersI  = 0;
-    u8  registersST = 0;
-    u8  registersDT = 0;
-    u16 stack[16]{};
-    u8  stackPointer = 0;
-    u16 programCounter = PROG_START_ADDR;
+    u8  registersV[16];
+    u16 registersI;
+    u8  registersST;
+    u8  registersDT;
+    u8  stackPointer;
+    u16 stack[16];
+    u16 programCounter;
 
     void loadFontSprites();
     void execute(u16 instruction);
