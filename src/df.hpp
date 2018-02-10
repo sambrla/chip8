@@ -10,12 +10,14 @@ class DF
 public:
     struct Settings
     {
-        unsigned  x         = 0;
-        unsigned  y         = 0;
-        unsigned  height    = 200;
-        unsigned  width     = 400;
-        unsigned  vscale    = 20;
+        unsigned  x      = 0;
+        unsigned  y      = 0;
+        unsigned  height = 0;
+        unsigned  width  = 0;
+        unsigned  vscale = 0;
+
         sf::Color lineColor = sf::Color::White;
+        sf::Color overColor = sf::Color::Red;
 
         // Corresponding font should be located in project dir
         // Designed for fixed width fonts
@@ -26,9 +28,9 @@ public:
         float transparency = 1;
     };
 
-    DF();
+    explicit DF(const Settings settings);
     Settings settings() const;
-    void applySettings(const Settings s);
+    void applySettings(const Settings settings);
     void addDataPoint(float dp);
     void draw(sf::RenderWindow* win);
     void clear();
@@ -42,7 +44,7 @@ private:
     // Graph components
     sf::RectangleShape graphBorder;
     sf::VertexArray graphLine;
-    sf::Text stat, axis1, axis2;
+    sf::Text stats, axis1, axis2;
     sf::Font font;
 
     void createGraph();

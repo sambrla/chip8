@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <bitset>
 #include <cstring>
 #include <ctime>
@@ -6,7 +7,7 @@
 #include <iostream>
 #include "interpreter.hpp"
 
-#define PROG_START_ADDR 0x200 // Most progs start at 0x200 (512)
+#define PROG_START_ADDR 0x200 // Most programs start at 0x200 (512)
 
 Interpreter::Interpreter()
 {
@@ -14,6 +15,7 @@ Interpreter::Interpreter()
     reset();
 }
 
+// Soft reset; does not clear memory
 void Interpreter::reset()
 {
     std::fill(std::begin(registersV),    std::end(registersV),    0);
@@ -28,42 +30,45 @@ void Interpreter::reset()
     programCounter = PROG_START_ADDR;
 }
 
-void Interpreter::loadRom(std::string path)
+bool Interpreter::loadProgram(const std::string& program)
 {
     // Clear program memory
     std::fill(std::begin(mem)+PROG_START_ADDR, std::end(mem), 0);
 
-    std::ifstream stream(path, std::ios::binary);
+    std::ifstream stream(program, std::ios::binary);
     if (stream.is_open())
     {
         stream.seekg(0, stream.end);
         const auto len = stream.tellg();
 
+        // Can program fit in memory?
         if (len > MEMORY_SIZE - PROG_START_ADDR)
         {
-            std::cerr << "Rom file too large! Max size is "
+            std::cerr << "Program too large! Max size is "
                       << (MEMORY_SIZE - PROG_START_ADDR) << " bytes"
                       << std::endl;
-            return;
+            return false;
         }
 
         stream.seekg(0);
         stream.read(reinterpret_cast<char*>(&mem[PROG_START_ADDR]), len);
-        info.size = len;
+
+        // Populate progInfo fields
+        progInfo.size = len;
+        const auto pos = program.find_last_of("/\\");
+        if (pos != std::string::npos)
+        {
+            progInfo.path = program.substr(0, pos);
+            progInfo.name = program.substr(pos+1);
+        }
     }
     else
     {
-        std::cerr << "Unable to open rom file @: " << path << std::endl;
+        std::cerr << "Unable to open program '" << program << "'" << std::endl;
+        return false;
     }
     stream.close();
-
-    // Extract path and file name
-    auto pos = path.find_last_of("/\\");
-    if (pos != std::string::npos)
-    {
-        info.path = path.substr(0, pos);
-        info.name = path.substr(pos+1);
-    }
+    return true;
 }
 
 void Interpreter::cycle()
@@ -73,31 +78,31 @@ void Interpreter::cycle()
     execute(inst);
 }
 
-// Timers should be decremented at a rate of 60 Hz
+// Timers should be decremented at 60 Hz
 void Interpreter::cycleTimers()
 {
     if (registersDT > 0) registersDT--;
     if (registersST > 0) registersST--;
 }
 
-void Interpreter::setKeyState(Keypad key, bool isPressed)
+void Interpreter::setKeyState(u8 hexKeyCode, bool isPressed)
 {
-    keyState[key] = isPressed;
+    keyState[hexKeyCode & 0xF] = isPressed;
 }
 
-bool Interpreter::isBuzzerOn() const
+bool Interpreter::isBuzzerSet() const
 {
     return registersST > 0;
 }
 
-const Interpreter::RomInfo* Interpreter::romInfo() const
+const Interpreter::ProgramInfo& Interpreter::programInfo() const
 {
-    return &info;
+    return progInfo;
 }
 
-const Interpreter::FrameBuffer* Interpreter::frameBuffer() const
+const Interpreter::FrameBuffer& Interpreter::frameBuffer() const
 {
-    return &buffer;
+    return buffer;
 }
 
 void Interpreter::loadFontSprites()
@@ -123,11 +128,12 @@ void Interpreter::loadFontSprites()
     };
 
     // Copy into mem before PROG_START_ADDR, i.e. starting at 0x000
-    memcpy(mem, font, sizeof(font));
+    std::copy(font, font+sizeof(font), mem);
 }
 
 void Interpreter::execute(u16 instruction)
 {
+    // Decode instruction
     const auto x   = (instruction & 0x0F00) >> 8;
     const auto y   = (instruction & 0x00F0) >> 4;
     const auto nnn =  instruction & 0x0FFF;
@@ -142,10 +148,7 @@ void Interpreter::execute(u16 instruction)
     // 00EE: Return from subroutine
     else if (instruction == 0x00EE)
     {
-        if (stackPointer > 0)
-        {
-            programCounter = stack[--stackPointer];
-        }
+        programCounter = stack[--stackPointer];
     }
     // 1nnn: Jump to address nnn
     else if ((instruction & 0xF000) == 0x1000)
@@ -360,11 +363,11 @@ void Interpreter::execute(u16 instruction)
     }
     else
     {
-        printf("Unrecognised instruction %04x @ 0x%04x\n",
-            instruction, programCounter-2);
+        printf("Unrecognised instruction '%04x' @ 0x%04x\n",
+            instruction, programCounter - 2);
 
         dumpRegisters();
-        dumpMemory(32, programCounter-2);
+        dumpMemory(32, programCounter - 2);
         exit(1);
     }
 }
@@ -374,7 +377,7 @@ void Interpreter::drawToBuffer(u8 x, u8 y, u8 n)
     registersV[0xF] = 0;
     for (auto row = 0; row < n; row++)
     {
-        auto rowByte = mem[registersI + row];
+        const auto rowByte = mem[registersI + row];
         for (auto col = 0; col < 8; col++)
         {
             // Process bits left-to-right
@@ -385,8 +388,8 @@ void Interpreter::drawToBuffer(u8 x, u8 y, u8 n)
                 continue;
             }
 
-            auto pxX = (registersV[x] & 0x3F) + col;
-            auto pxY = (registersV[y] & 0x1F) + row;
+            const auto pxX = (registersV[x] & 0x3F) + col;
+            const auto pxY = (registersV[y] & 0x1F) + row;
             auto bufferPx = buffer.pixels + pxX + pxY * buffer.Width;
             if (*bufferPx == 1)
             {
@@ -413,9 +416,9 @@ void Interpreter::dumpRegisters() const
     printf("registersST: %X\n", registersST);
 }
 
-void Interpreter::dumpMemory(unsigned bytes, unsigned offset) const
+void Interpreter::dumpMemory(u8 bytes, u8 offset) const
 {
-    printf("memory\n");
+    printf("memory snapshot (%d bytes)\n", bytes);
     for (auto i = offset; i < offset + bytes; i += 2)
     {
         printf("  0x%04x: %02X %02X\n", i, mem[i], mem[i+1]);

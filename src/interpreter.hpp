@@ -8,30 +8,10 @@
 class Interpreter
 {
   public:
-    typedef unsigned char  u8;
-    typedef unsigned short u16;
+    using u8  = unsigned char;
+    using u16 = unsigned short;
 
-    enum Keypad
-    {
-        Key0,
-        Key1,
-        Key2,
-        Key3,
-        Key4,
-        Key5,
-        Key6,
-        Key7,
-        Key8,
-        Key9,
-        KeyA,
-        KeyB,
-        KeyC,
-        KeyD,
-        KeyE,
-        KeyF
-    };
-
-    struct RomInfo
+    struct ProgramInfo
     {
         unsigned size;
         std::string name;
@@ -40,24 +20,24 @@ class Interpreter
 
     struct FrameBuffer
     {
-        static constexpr unsigned Width  = 64;
-        static constexpr unsigned Height = 32;
+        static constexpr u8 Width  = 64;
+        static constexpr u8 Height = 32;
         u8 pixels[Width * Height];
     };
 
     Interpreter();
     void reset();
-    void loadRom(std::string path);
+    bool loadProgram(const std::string& program);
     void cycle();
     void cycleTimers();
-    void setKeyState(Keypad key, bool isPressed);
-    bool isBuzzerOn() const;
-    const RomInfo* romInfo() const;
-    const FrameBuffer* frameBuffer() const;
+    void setKeyState(u8 hexKeyCode, bool isPressed);
+    bool isBuzzerSet() const;
+    const ProgramInfo& programInfo() const;
+    const FrameBuffer& frameBuffer() const;
 
   private:
     bool keyState[16];
-    RomInfo info;
+    ProgramInfo progInfo;
     FrameBuffer buffer;
 
     u8  mem[MEMORY_SIZE]{};
@@ -73,7 +53,7 @@ class Interpreter
     void execute(u16 instruction);
     void drawToBuffer(u8 x, u8 y, u8 n);
     void dumpRegisters() const;
-    void dumpMemory(unsigned bytes, unsigned offset = 0) const;
+    void dumpMemory(u8 bytes, u8 offset = 0) const;
 };
 
 #endif // INTERPRETER_H_

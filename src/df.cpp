@@ -2,8 +2,9 @@
 #include <sstream>
 #include "df.hpp"
 
-DF::DF()
+DF::DF(const Settings settings)
 {
+    applySettings(settings);
     clear();
 }
 
@@ -17,11 +18,9 @@ DF::Settings DF::settings() const
 {
     return s;
 }
-
 void DF::addDataPoint(float dp)
 {
     if (dp > max) max = dp;
-
     mean = (mean * n + dp) / (n + 1);
     n++;
 
@@ -54,7 +53,7 @@ void DF::draw(sf::RenderWindow* win)
         {
             // Clamp points that fall outside drawGraph scale
             p.position.y = s.y;
-            p.color = sf::Color::Red;
+            p.color = s.overColor;
         }
 
         data.append(p);
@@ -64,10 +63,10 @@ void DF::draw(sf::RenderWindow* win)
     win->draw(axis1);
     win->draw(axis2);
 
-    stat.setString("samples: " + std::to_string(n) + ", mean: "
+    stats.setString("samples: " + std::to_string(n) + ", mean: "
         + toDecimalString(mean, 2) + s.vscaleLabel + ", max: "
         + toDecimalString(max,  2) + s.vscaleLabel);
-    win->draw(stat);
+    win->draw(stats);
 }
 
 void DF::clear()
@@ -100,14 +99,14 @@ void DF::createGraph()
 
     if (font.loadFromFile(s.fontName))
     {
-        stat.setFont(font);
-        stat.setFillColor(sf::Color::White);
-        stat.setCharacterSize(s.height * 0.125f);
-        stat.setPosition(sf::Vector2f(s.x + 8, s.y));
+        stats.setFont(font);
+        stats.setFillColor(sf::Color::White);
+        stats.setCharacterSize(s.height * 0.125f);
+        stats.setPosition(sf::Vector2f(s.x + 8, s.y));
 
         axis1.setFont(font);
         axis1.setFillColor(sf::Color::White);
-        axis1.setCharacterSize(stat.getCharacterSize());
+        axis1.setCharacterSize(stats.getCharacterSize());
         axis1.setString(toDecimalString(s.vscale, 0) + s.vscaleLabel);
         axis1.setPosition(sf::Vector2f(
             s.x + s.width - axis1.getLocalBounds().width - 12,
@@ -115,7 +114,7 @@ void DF::createGraph()
 
         axis2.setFont(font);
         axis2.setFillColor(sf::Color::White);
-        axis2.setCharacterSize(stat.getCharacterSize());
+        axis2.setCharacterSize(stats.getCharacterSize());
         axis2.setString(toDecimalString(s.vscale * 0.5f, 0) + s.vscaleLabel);
         axis2.setPosition(sf::Vector2f(
             s.x + s.width - axis2.getLocalBounds().width - 12,

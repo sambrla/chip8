@@ -2,6 +2,7 @@
 #define CHIP8_H_
 
 #include <map>
+#include <memory>
 #include <SFML/Window.hpp>
 #include "df.hpp"
 #include "interpreter.hpp"
@@ -9,37 +10,40 @@
 class Chip8
 {
 public:
-    explicit Chip8(Interpreter *vm);
-    void run();
+    explicit Chip8(unsigned ipc, unsigned scale, bool useProfiler);
+    void run(const std::string& rom);
 
 private:
     // Map SFML key codes to Chip-8 hex keypad
-    const std::map<sf::Keyboard::Key, Interpreter::Keypad> Keymap
+    const std::map<sf::Keyboard::Key, unsigned char> Keymap
     {
-        { sf::Keyboard::Key::Num1, Interpreter::Keypad::Key1 },
-        { sf::Keyboard::Key::Num2, Interpreter::Keypad::Key2 },
-        { sf::Keyboard::Key::Num3, Interpreter::Keypad::Key3 },
-        { sf::Keyboard::Key::Num4, Interpreter::Keypad::KeyC },
-        { sf::Keyboard::Key::Q,    Interpreter::Keypad::Key4 },
-        { sf::Keyboard::Key::E,    Interpreter::Keypad::Key6 },
-        { sf::Keyboard::Key::A,    Interpreter::Keypad::Key7 },
-        { sf::Keyboard::Key::R,    Interpreter::Keypad::KeyD },
-        { sf::Keyboard::Key::W,    Interpreter::Keypad::Key5 },
-        { sf::Keyboard::Key::S,    Interpreter::Keypad::Key8 },
-        { sf::Keyboard::Key::D,    Interpreter::Keypad::Key9 },
-        { sf::Keyboard::Key::F,    Interpreter::Keypad::KeyE },
-        { sf::Keyboard::Key::Z,    Interpreter::Keypad::KeyA },
-        { sf::Keyboard::Key::X,    Interpreter::Keypad::Key0 },
-        { sf::Keyboard::Key::C,    Interpreter::Keypad::KeyB },
-        { sf::Keyboard::Key::V,    Interpreter::Keypad::KeyF }
+        { sf::Keyboard::Key::Num1, 0x1 },
+        { sf::Keyboard::Key::Num2, 0x2 },
+        { sf::Keyboard::Key::Num3, 0x3 },
+        { sf::Keyboard::Key::Num4, 0xC },
+        { sf::Keyboard::Key::Q,    0x4 },
+        { sf::Keyboard::Key::E,    0x6 },
+        { sf::Keyboard::Key::A,    0x7 },
+        { sf::Keyboard::Key::R,    0xD },
+        { sf::Keyboard::Key::W,    0x5 },
+        { sf::Keyboard::Key::S,    0x8 },
+        { sf::Keyboard::Key::D,    0x9 },
+        { sf::Keyboard::Key::F,    0xE },
+        { sf::Keyboard::Key::Z,    0xA },
+        { sf::Keyboard::Key::X,    0x0 },
+        { sf::Keyboard::Key::C,    0xB },
+        { sf::Keyboard::Key::V,    0xF }
     };
 
-    Interpreter *vm;
-    DF diagGraph;
+    Interpreter vm;
     sf::RenderWindow window;
-    bool showDiag = false;
+    std::unique_ptr<DF> profiler;
+    bool isPaused;
     unsigned ipc; // Instructions per cycle
+    unsigned scale;
 
+    void onKeyDn(const sf::Event& event);
+    void onKeyUp(const sf::Event& event);
     void drawFrame();
 };
 
