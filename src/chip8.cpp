@@ -10,16 +10,16 @@ Chip8::Chip8(unsigned ipc, unsigned scale, bool useProfiler)
     if (useProfiler)
     {
         auto s = DF::Settings();
-        s.x            = 0;
-        s.y            = window.getSize().y - 200;
-        s.width        = window.getSize().x;
-        s.height       = 200;
-        s.lineColor    = sf::Color::Cyan;
-        s.overColor    = sf::Color::Blue;
-        s.vscale       = 16;
-        s.vscaleLabel  = " ms";
-        // github.com/adobe-fonts/source-code-pro
-        s.fontName     = "SourceCodePro-Regular.otf";
+        s.title      = "CYCLE TIME @ 60 Hz";
+        s.x          = 0;
+        s.y          = window.getSize().y - 200;
+        s.width      = window.getSize().x;
+        s.height     = 200;
+        s.lineColor  = sf::Color::Cyan;
+        s.overColor  = sf::Color::Blue;
+        s.vscale     = 16;
+        s.vscaleUnit = " ms";
+        s.fontName   = "SourceCodePro-Regular.otf";
 
         profiler = std::unique_ptr<DF>(new DF(s));
     }
@@ -78,7 +78,7 @@ void Chip8::run(const std::string& rom)
             // Calling asMilliseconds doesn't produce the desired precision
             profiler->addDataPoint(
                 timer.getElapsedTime().asMicroseconds() * 0.001f);
-            profiler->draw(&window);
+            window.draw(*profiler);
         }
         window.display();
 
@@ -121,6 +121,8 @@ void Chip8::onKeyUp(const sf::Event& event)
     if (event.key.control &&
         event.key.code == sf::Keyboard::R)
     {
+        if (profiler) profiler->clear();
+
         vm.reset();
         isPaused = false;
     }

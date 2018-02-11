@@ -5,7 +5,7 @@
 #include <SFML/Graphics.hpp>
 
 // Quick and dirty class to display diagnostic data. Requires SFML
-class DF
+class DF : public sf::Drawable
 {
 public:
     struct Settings
@@ -22,7 +22,8 @@ public:
         // Corresponding font should be located in project dir
         // Designed for fixed width fonts
         std::string fontName;
-        std::string vscaleLabel;
+        std::string vscaleUnit;
+        std::string title;
 
         // Background transparency; between 0 (transparent) and 1 (opaque)
         float transparency = 1;
@@ -32,19 +33,20 @@ public:
     Settings settings() const;
     void applySettings(const Settings settings);
     void addDataPoint(float dp);
-    void draw(sf::RenderWindow* win);
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
     void clear();
 
 private:
     Settings s;
-    std::deque<sf::Vertex> points;
+    std::deque<unsigned> yPoints;
+    std::vector<sf::Vertex> graphData;
     float mean, max;
     unsigned n;
 
     // Graph components
-    sf::RectangleShape graphBorder;
-    sf::VertexArray graphLine;
-    sf::Text stats, axis1, axis2;
+    sf::RectangleShape border;
+    sf::VertexArray axisLine;
+    sf::Text statsText, axisText1, axisText2;
     sf::Font font;
 
     void createGraph();
