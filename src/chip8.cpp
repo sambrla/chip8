@@ -1,25 +1,43 @@
 #include <SFML/Graphics.hpp>
 #include "chip8.hpp"
 
+#define BG_COL          sf::Color( 41,  43,  49, 255)
+#define PX_COL          sf::Color(106, 202,  63, 255)
+#define GRAPH_BG_COL    sf::Color(214, 214, 214, 255)
+#define GRAPH_GLINE_COL sf::Color( 41,  43,  49,  40)
+#define GRAPH_OLIER_COL sf::Color(252,  42,  28, 255)
+
 Chip8::Chip8(unsigned ipc, unsigned scale, bool useProfiler)
     : ipc(ipc), scale(scale), isPaused(false)
 {
+    sf::ContextSettings context;
+    context.antialiasingLevel = 8;
+
     window.create(
-        sf::VideoMode(64*scale, 32*scale + (useProfiler ? 200 : 0)), "Chip-8");
+        sf::VideoMode(64*scale, 32*scale + (useProfiler ? 10*scale : 0)),
+        "Chip-8", sf::Style::Default, context);
 
     if (useProfiler)
     {
         auto s = DF::Settings();
-        s.title      = "CYCLE TIME @ 60 Hz";
-        s.x          = 0;
-        s.y          = window.getSize().y - 200;
-        s.width      = window.getSize().x;
-        s.height     = 200;
-        s.lineColor  = sf::Color::Cyan;
-        s.overColor  = sf::Color::Blue;
-        s.vscale     = 16;
-        s.vscaleUnit = " ms";
-        s.fontName   = "SourceCodePro-Regular.otf";
+        s.title           = "Cycle time";
+        s.caption         = "60 cycles/sec at " +
+                            std::to_string(ipc) + " inst/cycle";
+        s.x               = 0;
+        s.y               = window.getSize().y - 10*scale;
+        s.width           = window.getSize().x;
+        s.height          = 10*scale;
+        s.bgColor         = GRAPH_BG_COL;
+        s.borderColor     = GRAPH_BG_COL;
+        s.gridLineColor   = GRAPH_GLINE_COL;
+        s.lineColor       = BG_COL;
+        s.outlierColor    = GRAPH_OLIER_COL;
+        s.fontColor       = BG_COL;
+        s.fontNameRegular = "fonts/Roboto/Roboto-Regular.ttf";
+        s.fontNameBold    = "fonts/Roboto/Roboto-Bold.ttf";
+        s.gridLines       = 1;
+        s.vscale          = 16;
+        s.vscaleUnit      = " ms";
 
         profiler = std::unique_ptr<DF>(new DF(s));
     }
@@ -70,7 +88,7 @@ void Chip8::run(const std::string& rom)
         // Update timers at 60 Hz independent of IPC
         vm.cycleTimers();
 
-        window.clear();
+        window.clear(BG_COL);
         drawFrame();
         if (profiler)
         {
@@ -150,10 +168,10 @@ void Chip8::drawFrame()
                 quad[2].position = sf::Vector2f(x*scale+scale, y*scale+scale);
                 quad[3].position = sf::Vector2f(x*scale,       y*scale+scale);
 
-                quad[0].color = sf::Color::White;
-                quad[1].color = sf::Color::White;
-                quad[2].color = sf::Color::White;
-                quad[3].color = sf::Color::White;
+                quad[0].color = PX_COL;
+                quad[1].color = PX_COL;
+                quad[2].color = PX_COL;
+                quad[3].color = PX_COL;
             }
         }
     }

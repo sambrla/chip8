@@ -4,53 +4,56 @@
 #include <deque>
 #include <SFML/Graphics.hpp>
 
-// Quick and dirty class to display diagnostic data. Requires SFML
+// Plots diagnostic data. Requires SFML
 class DF : public sf::Drawable
 {
 public:
     struct Settings
     {
-        unsigned  x      = 0;
-        unsigned  y      = 0;
-        unsigned  height = 0;
-        unsigned  width  = 0;
-        unsigned  vscale = 0;
+        int x         = 0;
+        int y         = 0;
+        int height    = 0;
+        int width     = 0;
+        int vscale    = 0;
+        int gridLines = 1;
 
-        sf::Color lineColor = sf::Color::White;
-        sf::Color overColor = sf::Color::Red;
+        sf::Color lineColor     = sf::Color::Cyan;
+        sf::Color outlierColor  = sf::Color::Blue;
+        sf::Color bgColor       = sf::Color::Black;
+        sf::Color gridLineColor = sf::Color::White;
+        sf::Color borderColor   = sf::Color::White;
+        sf::Color fontColor     = sf::Color::White;
 
-        // Corresponding font should be located in project dir
-        // Designed for fixed width fonts
-        std::string fontName;
+        // Bold font face is optional; will fall back to regular if not found
+        std::string fontNameRegular;
+        std::string fontNameBold;
         std::string vscaleUnit;
         std::string title;
-
-        // Background transparency; between 0 (transparent) and 1 (opaque)
-        float transparency = 1;
+        std::string caption;
     };
 
     explicit DF(const Settings settings);
     Settings settings() const;
-    void applySettings(const Settings settings);
+    float average() const;
     void addDataPoint(float dp);
-    void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
+    void applySettings(const Settings settings);
     void clear();
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
 
 private:
     Settings s;
-    std::deque<unsigned> yPoints;
-    std::vector<sf::Vertex> graphData;
-    float mean, max;
-    unsigned n;
+    std::deque<int> yPointsBuffer;
+    std::vector<sf::Vertex> xyPoints;
+    int n;
+    float avg;
 
     // Graph components
     sf::RectangleShape border;
-    sf::VertexArray axisLine;
-    sf::Text statsText, axisText1, axisText2;
-    sf::Font font;
+    sf::VertexArray gridLines;
+    sf::Text titleText, captionText, scaleText;
+    sf::Font fontRegular, fontBold;
 
     void createGraph();
-    static std::string toDecimalString(float f, char precision);
 };
 
 #endif // DF_H_

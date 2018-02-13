@@ -1,22 +1,19 @@
-#include <iomanip>
-#include <sstream>
 #include "df.hpp"
 
 DF::DF(const Settings settings)
 {
-    // The number of data points displayed will always be <= the graph width
-    graphData.reserve(settings.width);
+    // The number of data points displayed will be <= the graph width
+    xyPoints.reserve(settings.width);
 
-    applySettings(settings);
     clear();
+    applySettings(settings);
 }
 
 void DF::clear()
 {
-    yPoints.clear();
-    graphData.clear();
-    mean = max = 0;
-    n = 0;
+    yPointsBuffer.clear();
+    xyPoints.clear();
+    avg = n = 0;
 }
 
 void DF::applySettings(const Settings settings)
@@ -30,43 +27,43 @@ DF::Settings DF::settings() const
     return s;
 }
 
+float DF::average() const
+{
+    return avg;
+}
+
 void DF::addDataPoint(float dp)
 {
-    max  = std::max(max, dp);
-    mean = (mean * n + dp) / (n + 1);
+    avg = (avg * n + dp) / (n + 1);
     n++;
 
-    statsText.setString(s.title + " (samples: " + std::to_string(n)
-        + ", mean: " + toDecimalString(mean, 2) + s.vscaleUnit
-        + ", max: "  + toDecimalString(max,  2) + s.vscaleUnit + ")");
-
-    yPoints.push_front(s.y + s.height - dp * (s.height / float(s.vscale)));
-    if (yPoints.size() > s.width)
+    yPointsBuffer.push_front(s.y + s.height - dp * (s.height / float(s.vscale)));
+    if (yPointsBuffer.size() > s.width)
     {
         // Ensure the size does not exceed the width of the graph
-        yPoints.pop_back();
+        yPointsBuffer.pop_back();
     }
 
     // Update the vertex array
     auto x = s.x + s.width;
-    for (std::size_t i = 0; i < yPoints.size(); i++, x--)
+    for (std::size_t i = 0; i < yPointsBuffer.size(); i++, x--)
     {
-        // Insert a new vertex if needed
-        if (i >= graphData.size())
+        if (i >= xyPoints.size())
         {
-            graphData.push_back(sf::Vertex());
+            // Insert a new vertex if needed
+            xyPoints.push_back(sf::Vertex());
         }
 
-        auto& v = graphData[i];
+        auto& v = xyPoints[i];
         v.color      = s.lineColor;
         v.position.x = x;
-        v.position.y = yPoints[i];
+        v.position.y = yPointsBuffer[i];
 
         // Clamp points that overflow
         if (v.position.y < s.y)
         {
             v.position.y = s.y;
-            v.color = s.overColor;
+            v.color = s.outlierColor;
         }
     }
 }
@@ -74,11 +71,11 @@ void DF::addDataPoint(float dp)
 void DF::draw(sf::RenderTarget& target, sf::RenderStates states) const
 {
     target.draw(border);
-    target.draw(axisLine);
-    target.draw(&graphData[0], graphData.size(), sf::LinesStrip);
-    target.draw(axisText1);
-    target.draw(axisText2);
-    target.draw(statsText);
+    target.draw(gridLines);
+    target.draw(scaleText);
+    target.draw(titleText);
+    target.draw(captionText);
+    target.draw(&xyPoints[0], xyPoints.size(), sf::LineStrip);
 }
 
 void DF::createGraph()
@@ -86,50 +83,49 @@ void DF::createGraph()
     border.setPosition(s.x, s.y);
     border.setSize(sf::Vector2f(s.width, s.height));
     border.setOutlineThickness(1);
-    border.setOutlineColor(sf::Color::White);
-    border.setFillColor(sf::Color(0, 0, 0,
-        std::min(1.0f, std::max(0.0f, s.transparency)) * 255));
+    border.setOutlineColor(s.borderColor);
+    border.setFillColor(s.bgColor);
 
-    axisLine.resize(2);
-    axisLine.clear();
-    axisLine.setPrimitiveType(sf::LineStrip);
-    axisLine.append(
-        sf::Vertex(sf::Vector2f(
-            s.x,
-            s.y + s.height * 0.5f), sf::Color::White));
-    axisLine.append(
-        sf::Vertex(sf::Vector2f(
-            s.x + s.width,
-            s.y + s.height * 0.5f), sf::Color::White));
-
-    if (font.loadFromFile(s.fontName))
+    gridLines.resize(s.gridLines * 2);
+    gridLines.clear();
+    gridLines.setPrimitiveType(sf::Lines);
+    for (auto i = 1, d = s.height / (s.gridLines+1); i <= s.gridLines; i++)
     {
-        statsText.setFont(font);
-        statsText.setFillColor(sf::Color::White);
-        statsText.setCharacterSize(s.height * 0.125f);
-        statsText.setPosition(sf::Vector2f(s.x + 8, s.y));
+        gridLines.append(sf::Vertex(
+            sf::Vector2f(s.x,
+                         s.y + s.height - i*d), s.gridLineColor));
 
-        axisText1.setFont(font);
-        axisText1.setFillColor(sf::Color::White);
-        axisText1.setCharacterSize(statsText.getCharacterSize());
-        axisText1.setString(toDecimalString(s.vscale, 0) + s.vscaleUnit);
-        axisText1.setPosition(sf::Vector2f(
-            s.x + s.width - axisText1.getLocalBounds().width - 12,
-            s.y));
-
-        axisText2.setFont(font);
-        axisText2.setFillColor(sf::Color::White);
-        axisText2.setCharacterSize(statsText.getCharacterSize());
-        axisText2.setString(toDecimalString(s.vscale * 0.5f, 0) + s.vscaleUnit);
-        axisText2.setPosition(sf::Vector2f(
-            s.x + s.width - axisText2.getLocalBounds().width - 12,
-            s.y + s.height * 0.5f));
+        gridLines.append(sf::Vertex(
+            sf::Vector2f(s.x + s.width,
+                         s.y + s.height - i*d), s.gridLineColor));
     }
-}
 
-std::string DF::toDecimalString(float f, char precision)
-{
-    std::stringstream ss;
-    ss << std::fixed << std::setprecision(precision) << f;
-    return ss.str();
+    if (fontRegular.loadFromFile(s.fontNameRegular))
+    {
+        titleText.setFont(
+            fontBold.loadFromFile(s.fontNameBold) ? fontBold : fontRegular);
+        titleText.setFillColor(s.fontColor);
+        titleText.setCharacterSize(s.height * 0.12f); // Scale font to height
+        titleText.setString(s.title);
+        titleText.setPosition(sf::Vector2f(
+            s.x + 12,
+            s.y + 8));
+
+        captionText.setFont(fontRegular);
+        captionText.setFillColor(s.fontColor);
+        captionText.setCharacterSize(s.height * 0.1f);
+        captionText.setString(s.caption);
+        captionText.setPosition(sf::Vector2f(
+            s.x + 12,
+            titleText.getGlobalBounds().top
+                + titleText.getCharacterSize() + 4));
+
+        scaleText.setFont(fontRegular);
+        scaleText.setFillColor(s.fontColor);
+        scaleText.setCharacterSize(s.height * 0.1f);
+        scaleText.setString(std::to_string(s.vscale) + s.vscaleUnit + " scale");
+        scaleText.setPosition(sf::Vector2f(
+            s.x + s.width - scaleText.getLocalBounds().width - 16,
+            s.y + 8));
+    }
 }
