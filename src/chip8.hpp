@@ -10,7 +10,7 @@
 class Chip8
 {
 public:
-    explicit Chip8(unsigned ipc, unsigned scale, bool useProfiler);
+    explicit Chip8(unsigned ipc, bool isHighDpi, bool profileCycleTime);
     void run(const std::string& rom);
 
 private:

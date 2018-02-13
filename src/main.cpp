@@ -13,10 +13,10 @@ int main(int argc, char** argv)
     options.show_positional_help();
 
     options.add_options()
-        ("i,ipc",      "Instructions per cycle", CXX_UINT(14), "IPC")
-        ("s,scale",    "Window scale", CXX_UINT(20), "SCALE")
-        ("p,profiler", "Enable performance profiler")
-        ("h,help",     "Print help");
+        ("i,ipc",     "Instructions to execute per cycle", CXX_UINT(14), "IPC")
+        ("r,highdpi", "Enable high DPI screen mode")
+        ("p,profile", "Profile cycle time performance")
+        ("h,help",    "Print help");
 
     options.add_options("hidden")
         ("rom", "Path to ROM file", cxxopts::value<std::string>());
@@ -34,9 +34,9 @@ int main(int argc, char** argv)
         }
 
         Chip8 app(
-            result["ipc"  ].as<unsigned>(),
-            result["scale"].as<unsigned>(),
-            result.count("profiler"));
+            result["ipc"].as<unsigned>(),
+            result.count("highdpi"),
+            result.count("profile"));
 
         // Run the ROM
         app.run(result["rom"].as<std::string>());

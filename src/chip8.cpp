@@ -7,17 +7,17 @@
 #define GRAPH_GLINE_COL sf::Color( 41,  43,  49,  40)
 #define GRAPH_OLIER_COL sf::Color(252,  42,  28, 255)
 
-Chip8::Chip8(unsigned ipc, unsigned scale, bool useProfiler)
-    : ipc(ipc), scale(scale), isPaused(false)
+Chip8::Chip8(unsigned ipc, bool isHighDpi, bool profileCycleTime)
+    : ipc(ipc), scale(isHighDpi ? 20 : 10), isPaused(false)
 {
     sf::ContextSettings context;
-    context.antialiasingLevel = 8;
+    context.antialiasingLevel = 4;
 
     window.create(
-        sf::VideoMode(64*scale, 32*scale + (useProfiler ? 10*scale : 0)),
+        sf::VideoMode(64*scale, 32*scale + (profileCycleTime ? 10*scale : 0)),
         "Chip-8", sf::Style::Default, context);
 
-    if (useProfiler)
+    if (profileCycleTime)
     {
         auto s = DF::Settings();
         s.title           = "Cycle time";
