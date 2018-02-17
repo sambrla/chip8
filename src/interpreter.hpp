@@ -31,7 +31,7 @@ class Interpreter
     void cycle();
     void cycleTimers();
     void setKeyState(u8 hexKeyCode, bool isPressed);
-    bool isBuzzerSet() const;
+    bool isBuzzerOn() const;
     const ProgramInfo& programInfo() const;
     const FrameBuffer& frameBuffer() const;
 

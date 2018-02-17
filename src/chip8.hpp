@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <SFML/Window.hpp>
+#include <SFML/Audio.hpp>
 #include "df.hpp"
 #include "interpreter.hpp"
 
@@ -37,6 +38,8 @@ private:
 
     Interpreter vm;
     sf::RenderWindow window;
+    sf::SoundBuffer buzzerBuffer;
+    sf::Sound buzzer;
     std::unique_ptr<DF> profiler;
     bool isPaused;
     unsigned ipc; // Instructions per cycle
@@ -45,6 +48,7 @@ private:
     void onKeyDn(const sf::Event& event);
     void onKeyUp(const sf::Event& event);
     void drawFrame();
+    void initSound();
 };
 
 #endif // CHIP8_H_

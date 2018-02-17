@@ -90,7 +90,7 @@ void Interpreter::setKeyState(u8 hexKeyCode, bool isPressed)
     keyState[hexKeyCode & 0xF] = isPressed;
 }
 
-bool Interpreter::isBuzzerSet() const
+bool Interpreter::isBuzzerOn() const
 {
     return registersST > 0;
 }
@@ -235,8 +235,8 @@ void Interpreter::execute(u16 instruction)
     {
         // VF set to least sig bit before shift
         registersV[0xF] = registersV[x] & 0x1;
-        registersV[x]   = registersV[y] >> 1;
-        // registersV[x] >>= 1;
+        registersV[x] >>= 1;
+        // registersV[x]   = registersV[y] >> 1;
     }
     // 8xy7: Set Vx = Vy - Vx. Vf = 1 if borrow occurs
     else if ((instruction & 0xF00F) == 0x8007)
@@ -249,8 +249,8 @@ void Interpreter::execute(u16 instruction)
     {
         // Vf set to most sig bit before shift
         registersV[0xF] = registersV[x] >> 7;
-        registersV[x]   = registersV[y] << 1;
-        // registersV[x] <<= 1;
+        registersV[x] <<= 1;
+        // registersV[x]   = registersV[y] << 1;
     }
     // 9xy0: Skip next inst if Vx != Vy
     else if ((instruction & 0xF00F) == 0x9000)
