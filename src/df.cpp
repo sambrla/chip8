@@ -102,30 +102,34 @@ void DF::createGraph()
 
     if (fontRegular.loadFromFile(s.fontNameRegular))
     {
+        const auto xPadding = s.width  * 0.01f;
+        const auto yPadding = s.height * 0.05f;
+        const auto h1 = s.height * 0.12f;
+        const auto h2 = s.height * 0.10f;
+
         titleText.setFont(
             fontBold.loadFromFile(s.fontNameBold) ? fontBold : fontRegular);
         titleText.setFillColor(s.fontColor);
-        titleText.setCharacterSize(s.height * 0.12f); // Scale font to height
+        titleText.setCharacterSize(h1); // Scale font to height
         titleText.setString(s.title);
         titleText.setPosition(sf::Vector2f(
-            s.x + 12,
-            s.y + 8));
+            s.x + xPadding,
+            s.y + yPadding));
 
         captionText.setFont(fontRegular);
         captionText.setFillColor(s.fontColor);
-        captionText.setCharacterSize(s.height * 0.1f);
+        captionText.setCharacterSize(h2);
         captionText.setString(s.caption);
         captionText.setPosition(sf::Vector2f(
-            s.x + 12,
-            titleText.getGlobalBounds().top
-                + titleText.getCharacterSize() + 4));
+            s.x + xPadding,
+            s.y + h1 + (yPadding*2)));
 
         scaleText.setFont(fontRegular);
         scaleText.setFillColor(s.fontColor);
-        scaleText.setCharacterSize(s.height * 0.1f);
-        scaleText.setString(std::to_string(s.vscale) + s.vscaleUnit + " scale");
+        scaleText.setCharacterSize(h2);
+        scaleText.setString("scale: " + std::to_string(s.vscale) + s.vscaleUnit);
         scaleText.setPosition(sf::Vector2f(
-            s.x + s.width - scaleText.getLocalBounds().width - 16,
-            s.y + 8));
+            s.x + s.width - scaleText.getLocalBounds().width - xPadding,
+            s.y + yPadding));
     }
 }
