@@ -9,14 +9,14 @@ int main(int argc, char** argv)
 {
     cxxopts::Options options(argv[0],
         "A simple Chip-8 interpreter\ngithub.com/sambrla/chip-8\n");
-    options.positional_help("<ROM>");
+    options.positional_help("<PATH_TO_ROM>");
     options.show_positional_help();
 
     options.add_options()
-        ("i,ipc",     "Instructions to execute per cycle", CXX_UINT(14), "IPC")
-        ("r,highdpi", "Enable high DPI screen mode")
-        ("p,profile", "Profile cycle time performance")
-        ("h,help",    "Print help");
+        ("i,ipc",       "Instructions to execute per cycle", CXX_UINT(20), "IPC")
+        ("r,high-dpi",  "Enable high DPI screen mode")
+        ("p,profile",   "Profile cycle time performance")
+        ("h,help",      "Print help");
 
     options.add_options("hidden")
         ("rom", "Path to ROM file", cxxopts::value<std::string>());
@@ -35,7 +35,7 @@ int main(int argc, char** argv)
 
         Chip8 app(
             result["ipc"].as<unsigned>(),
-            result.count("highdpi"),
+            result.count("high-dpi"),
             result.count("profile"));
 
         // Run the ROM

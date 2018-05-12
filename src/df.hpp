@@ -16,6 +16,7 @@ public:
         int width     = 0;
         int vscale    = 0;
         int gridLines = 1;
+        bool showMean = false;
 
         sf::Color lineColor     = sf::Color::Cyan;
         sf::Color outlierColor  = sf::Color::Blue;
@@ -24,11 +25,8 @@ public:
         sf::Color borderColor   = sf::Color::White;
         sf::Color fontColor     = sf::Color::White;
 
-        // Bold font face is optional; will fall back to regular if not found
-        std::string fontNameRegular;
-        std::string fontNameBold;
+        std::string fontPath;
         std::string vscaleUnit;
-        std::string title;
         std::string caption;
     };
 
@@ -50,10 +48,11 @@ private:
     // Graph components
     sf::RectangleShape border;
     sf::VertexArray gridLines;
-    sf::Text titleText, captionText, scaleText;
+    sf::Text captionText, meanText, scaleText;
     sf::Font fontRegular, fontBold;
 
     void createGraph();
+    static std::string toDecimalString(float f, char precision);
 };
 
 #endif // DF_H_

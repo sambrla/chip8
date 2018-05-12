@@ -1,3 +1,5 @@
+#include <iomanip>
+#include <sstream>
 #include "df.hpp"
 
 DF::DF(const Settings settings)
@@ -37,6 +39,9 @@ void DF::addDataPoint(float dp)
     avg = (avg * n + dp) / (n + 1);
     n++;
 
+    meanText.setString(
+        "(mean: " + toDecimalString(avg, 2) + s.vscaleUnit + ")");
+
     yPointsBuffer.push_front(s.y + s.height - dp * (s.height / float(s.vscale)));
     if (yPointsBuffer.size() > s.width)
     {
@@ -72,10 +77,11 @@ void DF::draw(sf::RenderTarget& target, sf::RenderStates states) const
 {
     target.draw(border);
     target.draw(gridLines);
-    target.draw(scaleText);
-    target.draw(titleText);
-    target.draw(captionText);
     target.draw(&xyPoints[0], xyPoints.size(), sf::LineStrip);
+    target.draw(scaleText);
+    target.draw(captionText);
+
+    if (s.showMean) target.draw(meanText);
 }
 
 void DF::createGraph()
@@ -86,7 +92,7 @@ void DF::createGraph()
     border.setOutlineColor(s.borderColor);
     border.setFillColor(s.bgColor);
 
-    gridLines.resize(s.gridLines * 2);
+    gridLines.resize(s.gridLines*2);
     gridLines.clear();
     gridLines.setPrimitiveType(sf::Lines);
     for (auto i = 1, d = s.height / (s.gridLines+1); i <= s.gridLines; i++)
@@ -100,36 +106,40 @@ void DF::createGraph()
                          s.y + s.height - i*d), s.gridLineColor));
     }
 
-    if (fontRegular.loadFromFile(s.fontNameRegular))
+    if (fontRegular.loadFromFile(s.fontPath))
     {
         const auto xPadding = s.width  * 0.01f;
         const auto yPadding = s.height * 0.05f;
-        const auto h1 = s.height * 0.12f;
-        const auto h2 = s.height * 0.10f;
-
-        titleText.setFont(
-            fontBold.loadFromFile(s.fontNameBold) ? fontBold : fontRegular);
-        titleText.setFillColor(s.fontColor);
-        titleText.setCharacterSize(h1); // Scale font to height
-        titleText.setString(s.title);
-        titleText.setPosition(sf::Vector2f(
-            s.x + xPadding,
-            s.y + yPadding));
+        const auto fontSize = s.height * 0.10f;
 
         captionText.setFont(fontRegular);
         captionText.setFillColor(s.fontColor);
-        captionText.setCharacterSize(h2);
+        captionText.setCharacterSize(fontSize);
         captionText.setString(s.caption);
         captionText.setPosition(sf::Vector2f(
             s.x + xPadding,
-            s.y + h1 + (yPadding*2)));
+            s.y + yPadding));
+
+        meanText.setFont(fontRegular);
+        meanText.setFillColor(s.fontColor);
+        meanText.setCharacterSize(fontSize);
+        meanText.setPosition(sf::Vector2f(
+            s.x + xPadding*2 + captionText.getLocalBounds().width,
+            s.y + yPadding));
 
         scaleText.setFont(fontRegular);
         scaleText.setFillColor(s.fontColor);
-        scaleText.setCharacterSize(h2);
-        scaleText.setString("scale: " + std::to_string(s.vscale) + s.vscaleUnit);
+        scaleText.setCharacterSize(fontSize);
+        scaleText.setString("Vert. scale: " + std::to_string(s.vscale) + s.vscaleUnit);
         scaleText.setPosition(sf::Vector2f(
             s.x + s.width - scaleText.getLocalBounds().width - xPadding,
             s.y + yPadding));
     }
+}
+
+std::string DF::toDecimalString(float f, char precision)
+{
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(precision) << f;
+    return ss.str();
 }
