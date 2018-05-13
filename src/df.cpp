@@ -43,7 +43,7 @@ void DF::addDataPoint(float dp)
         "(mean: " + toDecimalString(avg, 2) + s.vscaleUnit + ")");
 
     yPointsBuffer.push_front(s.y + s.height - dp * (s.height / float(s.vscale)));
-    if (yPointsBuffer.size() > s.width)
+    if (yPointsBuffer.size() > unsigned(s.width))
     {
         // Ensure the size does not exceed the width of the graph
         yPointsBuffer.pop_back();
@@ -73,7 +73,7 @@ void DF::addDataPoint(float dp)
     }
 }
 
-void DF::draw(sf::RenderTarget& target, sf::RenderStates states) const
+void DF::draw(sf::RenderTarget& target, sf::RenderStates /*states*/) const
 {
     target.draw(border);
     target.draw(gridLines);

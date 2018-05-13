@@ -41,9 +41,9 @@ private:
     sf::SoundBuffer buzzerBuffer;
     sf::Sound buzzer;
     std::unique_ptr<DF> profiler;
-    bool isPaused;
     unsigned ipc; // Instructions per cycle
     unsigned scale;
+    bool isPaused;
 
     void onKeyDn(const sf::Event& event);
     void onKeyUp(const sf::Event& event);

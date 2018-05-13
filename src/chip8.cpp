@@ -100,7 +100,7 @@ void Chip8::run(const std::string& rom)
         if (isPaused) goto sleep;
 
         // IPC controls effective emulation speed, i.e. ipc*60 = inst/s
-        for (auto i = 0; i < ipc; i++)
+        for (auto i = 0U; i < ipc; i++)
         {
             vm.cycle();
             vm.isBuzzerOn() ? buzzer.play() : buzzer.stop();
