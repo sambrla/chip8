@@ -29,7 +29,7 @@ Chip8::Chip8(unsigned ipc, bool isHighDpi, bool profileCycleTime)
         s.lineColor     = BG_COL;
         s.outlierColor  = GRAPH_OL_COL;
         s.fontColor     = BG_COL;
-        s.fontPath      = "fonts/Roboto/Roboto-Regular.ttf";
+        s.fontName      = "font.ttf";
         s.vscale        = 16;
         s.vscaleUnit    = " ms";
         s.showMean      = true;

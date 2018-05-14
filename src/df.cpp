@@ -1,4 +1,5 @@
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 #include "df.hpp"
 
@@ -106,13 +107,13 @@ void DF::createGraph()
                          s.y + s.height - i*d), s.gridLineColor));
     }
 
-    if (fontRegular.loadFromFile(s.fontPath))
+    if (font.loadFromFile(s.fontName))
     {
         const auto xPadding = s.width  * 0.01f;
         const auto yPadding = s.height * 0.05f;
         const auto fontSize = s.height * 0.10f;
 
-        captionText.setFont(fontRegular);
+        captionText.setFont(font);
         captionText.setFillColor(s.fontColor);
         captionText.setCharacterSize(fontSize);
         captionText.setString(s.caption);
@@ -120,20 +121,25 @@ void DF::createGraph()
             s.x + xPadding,
             s.y + yPadding));
 
-        meanText.setFont(fontRegular);
+        meanText.setFont(font);
         meanText.setFillColor(s.fontColor);
         meanText.setCharacterSize(fontSize);
         meanText.setPosition(sf::Vector2f(
             s.x + xPadding*2 + captionText.getLocalBounds().width,
             s.y + yPadding));
 
-        scaleText.setFont(fontRegular);
+        scaleText.setFont(font);
         scaleText.setFillColor(s.fontColor);
         scaleText.setCharacterSize(fontSize);
         scaleText.setString("Vert. scale: " + std::to_string(s.vscale) + s.vscaleUnit);
         scaleText.setPosition(sf::Vector2f(
             s.x + s.width - scaleText.getLocalBounds().width - xPadding,
             s.y + yPadding));
+    }
+    else
+    {
+        std::cerr << "The font \"" << s.fontName << "\" "
+                  << "was not found in the executable directory" << std::endl;
     }
 }
 

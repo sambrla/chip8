@@ -25,7 +25,7 @@ public:
         sf::Color borderColor   = sf::Color::White;
         sf::Color fontColor     = sf::Color::White;
 
-        std::string fontPath;
+        std::string fontName;
         std::string vscaleUnit;
         std::string caption;
     };
@@ -49,7 +49,7 @@ private:
     sf::RectangleShape border;
     sf::VertexArray gridLines;
     sf::Text captionText, meanText, scaleText;
-    sf::Font fontRegular, fontBold;
+    sf::Font font;
 
     void createGraph();
     static std::string toDecimalString(float f, char precision);
