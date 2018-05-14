@@ -1,18 +1,13 @@
-# Roms
-roms/
-
-# Fonts
-*.otf
-
-# Build results
-build/
-bin/
-*.dSYM/
-*.out
-
-# Misc dirs+files
 .vscode/
 .vs/
+bin/
+build/
+roms/
+
+*.ttf
+*.dSYM
+*.out
+*.exe
 *.suo
 *.user
 *.userosscache
