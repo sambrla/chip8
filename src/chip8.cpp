@@ -1,5 +1,4 @@
 #include <cmath>
-#include <SFML/Graphics.hpp>
 #include "chip8.hpp"
 
 #define BG_COL       sf::Color( 41,  43, 49, 255)
@@ -7,36 +6,12 @@
 #define GRAPH_GL_COL sf::Color( 41,  43, 49,  40)
 #define GRAPH_OL_COL sf::Color(252,  42, 28, 255)
 
-Chip8::Chip8(unsigned ipc, bool isHighDpi, bool profileCycleTime)
-    : ipc(ipc), scale(isHighDpi ? 20 : 10), isPaused(false)
+#define IPC_STR " (" + std::to_string(ipc) + " inst/cycle)"
+
+Chip8::Chip8(unsigned ipc, bool isHighDpi)
+    : ipc(ipc), scale(isHighDpi ? 20U : 10U), isPaused(false)
 {
-    window.create(
-        sf::VideoMode(64*scale, 32*scale + (profileCycleTime ? 10*scale : 0)),
-        "Chip-8 interpreter");
-
-    if (profileCycleTime)
-    {
-        auto s = DF::Settings();
-        s.caption       = "Cycle time @ " + std::to_string(ipc) + " inst/cycle";
-        s.x             = 0;
-        s.y             = window.getSize().y - 10*scale;
-        s.width         = window.getSize().x;
-        s.height        = 10*scale;
-        s.bgColor       = sf::Color::White;
-        s.borderColor   = sf::Color::White;
-        s.gridLines     = 3;
-        s.gridLineColor = GRAPH_GL_COL;
-        s.lineColor     = BG_COL;
-        s.outlierColor  = GRAPH_OL_COL;
-        s.fontColor     = BG_COL;
-        s.fontName      = "font.ttf";
-        s.vscale        = 16;
-        s.vscaleUnit    = " ms";
-        s.showMean      = true;
-
-        profiler = std::unique_ptr<DF>(new DF(s));
-    }
-
+    window.create(sf::VideoMode(64U * scale, 32U * scale), "Chip-8 interpreter");
     initSound();
 }
 
@@ -53,7 +28,7 @@ void Chip8::initSound()
     for (auto i = 0; i < sampleRate; i++)
     {
         // y(t) = A.sin(w.t)
-        samples[i] = amplitude * std::sin(angularFreq * (interval * i));
+        samples[i] = sf::Int16(amplitude * std::sin(angularFreq * (interval * i)));
     }
 
     buzzerBuffer.loadFromSamples(&samples[0], sampleRate, 1, sampleRate);
@@ -64,14 +39,12 @@ void Chip8::initSound()
 void Chip8::run(const std::string& rom)
 {
     if (!vm.loadProgram(rom)) return;
-    window.setTitle(vm.programInfo().name);
+    window.setTitle(vm.programInfo().name + IPC_STR);
 
-    float delta;
     const auto hz = sf::milliseconds(1000/60); // 60 Hz, 16.6 ms
     sf::Clock timer;
     for (;;)
     {
-        delta = 0.0f;
         timer.restart();
 
         sf::Event event;
@@ -107,16 +80,9 @@ void Chip8::run(const std::string& rom)
         }
 
         vm.cycleTimers(); // Update timers at 60 Hz independent of IPC
-        delta = timer.getElapsedTime().asMicroseconds() * 0.001f;
 
         window.clear(BG_COL);
         drawFrame();
-        if (profiler)
-        {
-            // Log how long this cycle took (in ms)
-            profiler->addDataPoint(delta);
-            window.draw(*profiler);
-        }
         window.display();
 
         sleep:
@@ -154,7 +120,7 @@ void Chip8::onKeyUp(const sf::Event& event)
         buzzer.stop();
         isPaused = !isPaused;
         window.setTitle(isPaused ? "**PAUSED**"
-                                 : vm.programInfo().name);
+                                 : vm.programInfo().name + IPC_STR);
     }
 
     // Ctrl+R: reset VM
@@ -163,8 +129,7 @@ void Chip8::onKeyUp(const sf::Event& event)
     {
         buzzer.stop();
         isPaused = false;
-        window.setTitle(vm.programInfo().name);
-        if (profiler) profiler->clear();
+        window.setTitle(vm.programInfo().name + IPC_STR);
         vm.reset();
     }
 }
@@ -184,12 +149,12 @@ void Chip8::drawFrame()
             auto px = frame.pixels + i;
             if (*px == 1) // Only process pixels that are 'on'
             {
-                auto quad = &vertices[i*4];
+                auto quad = &vertices[i * 4];
 
-                quad[0].position = sf::Vector2f(x*scale,       y*scale);
-                quad[1].position = sf::Vector2f(x*scale+scale, y*scale);
-                quad[2].position = sf::Vector2f(x*scale+scale, y*scale+scale);
-                quad[3].position = sf::Vector2f(x*scale,       y*scale+scale);
+                quad[0].position = sf::Vector2f(x * scale,         y * scale);
+                quad[1].position = sf::Vector2f(x * scale + scale, y * scale);
+                quad[2].position = sf::Vector2f(x * scale + scale, y * scale + scale);
+                quad[3].position = sf::Vector2f(x * scale,         y * scale + scale);
 
                 quad[0].color = PX_COL;
                 quad[1].color = PX_COL;

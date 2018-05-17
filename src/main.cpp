@@ -14,8 +14,7 @@ int main(int argc, char** argv)
 
     options.add_options()
         ("i,ipc",       "Instructions to execute per cycle", CXX_UINT(20), "IPC")
-        ("r,high-dpi",  "Enable high DPI screen mode")
-        ("p,profile",   "Profile cycle time performance")
+        ("r,high-dpi",  "Scale window for high DPI displays")
         ("h,help",      "Print help");
 
     options.add_options("hidden")
@@ -24,7 +23,7 @@ int main(int argc, char** argv)
     try
     {
         options.parse_positional({"rom"});
-        auto result = options.parse(argc, argv);
+        const auto result = options.parse(argc, argv);
 
         // Print help if option specified or no ROM path provided
         if (result.count("help") || !result.count("rom"))
@@ -33,12 +32,7 @@ int main(int argc, char** argv)
             return 0;
         }
 
-        Chip8 app(
-            result["ipc"].as<unsigned>(),
-            result.count("high-dpi"),
-            result.count("profile"));
-
-        // Run the ROM
+        Chip8 app(result["ipc"].as<unsigned>(), result.count("high-dpi"));
         app.run(result["rom"].as<std::string>());
     }
     catch (const cxxopts::OptionException& e)

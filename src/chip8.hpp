@@ -5,18 +5,18 @@
 #include <memory>
 #include <SFML/Window.hpp>
 #include <SFML/Audio.hpp>
-#include "df.hpp"
+#include <SFML/Graphics.hpp>
 #include "interpreter.hpp"
 
 class Chip8
 {
 public:
-    explicit Chip8(unsigned ipc, bool isHighDpi, bool profileCycleTime);
+    explicit Chip8(unsigned ipc, bool isHighDpi);
     void run(const std::string& rom);
 
 private:
     // Map SFML key codes to Chip-8 hex keypad
-    const std::map<sf::Keyboard::Key, unsigned char> Keymap
+    const std::map<sf::Keyboard::Key, char> Keymap
     {
         { sf::Keyboard::Key::Num1, 0x1 },
         { sf::Keyboard::Key::Num2, 0x2 },
@@ -40,7 +40,6 @@ private:
     sf::RenderWindow window;
     sf::SoundBuffer buzzerBuffer;
     sf::Sound buzzer;
-    std::unique_ptr<DF> profiler;
     unsigned ipc; // Instructions per cycle
     unsigned scale;
     bool isPaused;
