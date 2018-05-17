@@ -59,7 +59,7 @@ bool Interpreter::loadProgram(const std::string& program)
         if (pos != std::string::npos)
         {
             progInfo.path = program.substr(0, pos);
-            progInfo.name = program.substr(pos+1);
+            progInfo.name = program.substr(pos + 1);
         }
     }
     else
@@ -85,9 +85,15 @@ void Interpreter::cycleTimers()
     if (registersST > 0) registersST--;
 }
 
-void Interpreter::setKeyState(u8 hexKeyCode, bool isPressed)
+// Changes behaviour of 8xy6, 8xyE, Fx55, and Fx65 ops
+void Interpreter::useAltShiftLoadBehaviour(bool enabled)
 {
-    keyState[hexKeyCode & 0xF] = isPressed;
+    altShiftLoad = enabled;
+}
+
+void Interpreter::setKeyState(u8 hexKeyCode, bool pressed)
+{
+    keyState[hexKeyCode & 0xF] = pressed;
 }
 
 bool Interpreter::isBuzzerOn() const
@@ -128,7 +134,7 @@ void Interpreter::loadFontSprites()
     };
 
     // Copy into mem before PROG_START_ADDR, i.e. starting at 0x000
-    std::copy(font, font+sizeof(font), mem);
+    std::copy(font, font + sizeof(font), mem);
 }
 
 void Interpreter::execute(u16 instruction)
@@ -167,26 +173,17 @@ void Interpreter::execute(u16 instruction)
     // 3xnn: Skip next inst if Vx == nn
     else if ((instruction & 0xF000) == 0x3000)
     {
-        if (registersV[x] == nn)
-        {
-            programCounter += 2;
-        }
+        if (registersV[x] == nn) programCounter += 2;
     }
     // 4xnn: Skip next inst if Vx != nn
     else if ((instruction & 0xF000) == 0x4000)
     {
-        if (registersV[x] != nn)
-        {
-            programCounter += 2;
-        }
+        if (registersV[x] != nn) programCounter += 2;
     }
     // 5xy0: Skip next inst if Vx == Vy
     else if ((instruction & 0xF00F) == 0x5000)
     {
-        if (registersV[x] == registersV[y])
-        {
-            programCounter += 2;
-        }
+        if (registersV[x] == registersV[y]) programCounter += 2;
     }
     // 6xnn: Set Vx = nn
     else if ((instruction & 0xF000) == 0x6000)
@@ -235,8 +232,14 @@ void Interpreter::execute(u16 instruction)
     {
         // VF set to least sig bit before shift
         registersV[0xF] = registersV[x] & 0x1;
-        registersV[x] >>= 1;
-        // registersV[x]   = registersV[y] >> 1;
+        if (altShiftLoad)
+        {
+            registersV[x] >>= 1;
+        }
+        else
+        {
+            registersV[x] = registersV[y] >> 1;
+        }
     }
     // 8xy7: Set Vx = Vy - Vx. Vf = 1 if borrow occurs
     else if ((instruction & 0xF00F) == 0x8007)
@@ -249,16 +252,19 @@ void Interpreter::execute(u16 instruction)
     {
         // Vf set to most sig bit before shift
         registersV[0xF] = registersV[x] >> 7;
-        registersV[x] <<= 1;
-        // registersV[x]   = registersV[y] << 1;
+        if (altShiftLoad)
+        {
+            registersV[x] <<= 1;
+        }
+        else
+        {
+            registersV[x] = registersV[y] << 1;
+        }
     }
     // 9xy0: Skip next inst if Vx != Vy
     else if ((instruction & 0xF00F) == 0x9000)
     {
-        if (registersV[x] != registersV[y])
-        {
-            programCounter += 2;
-        }
+        if (registersV[x] != registersV[y]) programCounter += 2;
     }
     // Annn: Set register I = address nnn
     else if ((instruction & 0xF000) == 0xA000)
@@ -284,18 +290,12 @@ void Interpreter::execute(u16 instruction)
     // Ex9E: Skip next inst if key == Vx is pressed
     else if ((instruction & 0xF0FF) == 0xE09E)
     {
-        if (keyState[registersV[x] & 0xF])
-        {
-            programCounter += 2;
-        }
+        if (keyState[registersV[x] & 0xF]) programCounter += 2;
     }
     // ExA1: Skip next inst if key == Vx is not pressed
     else if ((instruction & 0xF0FF) == 0xE0A1)
     {
-        if (!keyState[registersV[x] & 0xF])
-        {
-            programCounter += 2;
-        }
+        if (!keyState[registersV[x] & 0xF]) programCounter += 2;
     }
     // Fx07: Set Vx = DT
     else if ((instruction & 0xF0FF) == 0xF007)
@@ -339,27 +339,27 @@ void Interpreter::execute(u16 instruction)
     // Fx33: Set register I, I+1, I+2 = binary-coded decimal of Vx
     else if ((instruction & 0xF0FF) == 0xF033)
     {
-        mem[registersI]   = registersV[x] / 100;
-        mem[registersI+1] = registersV[x] % 100 / 10;
-        mem[registersI+2] = registersV[x] % 100 % 10;
+        mem[registersI]     = registersV[x] / 100;
+        mem[registersI + 1] = registersV[x] % 100 / 10;
+        mem[registersI + 2] = registersV[x] % 100 % 10;
     }
     // Fx55: Store V0..Vx in mem starting at address in register I
     else if ((instruction & 0xF0FF) == 0xF055)
     {
         for (auto i = 0; i <= x; i++)
         {
-            mem[registersI+i] = registersV[i];
+            mem[registersI + i] = registersV[i];
         }
-        registersI += x + 1;
+        if (!altShiftLoad) registersI += x + 1;
     }
     // Fx65: Fill V0..Vx from mem starting at address in register I
     else if ((instruction & 0xF0FF) == 0xF065)
     {
         for (auto i = 0; i <= x; i++)
         {
-            registersV[i] = mem[registersI+i];
+            registersV[i] = mem[registersI + i];
         }
-        registersI += x + 1;
+        if (!altShiftLoad) registersI += x + 1;
     }
     else
     {
@@ -421,6 +421,6 @@ void Interpreter::dumpMemory(u8 bytes, u8 offset) const
     printf("memory snapshot (%d bytes)\n", bytes);
     for (auto i = offset; i < offset + bytes; i += 2)
     {
-        printf("  0x%04x: %02X %02X\n", i, mem[i], mem[i+1]);
+        printf("  0x%04x: %02X %02X\n", i, mem[i], mem[i + 1]);
     }
 }

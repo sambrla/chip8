@@ -36,10 +36,12 @@ void Chip8::initSound()
     buzzer.setLoop(true);
 }
 
-void Chip8::run(const std::string& rom)
+void Chip8::run(const std::string& rom, bool withCompatibility)
 {
     if (!vm.loadProgram(rom)) return;
+
     window.setTitle(vm.programInfo().name + IPC_STR);
+    vm.useAltShiftLoadBehaviour(withCompatibility);
 
     const auto hz = sf::milliseconds(1000/60); // 60 Hz, 16.6 ms
     sf::Clock timer;

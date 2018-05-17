@@ -12,7 +12,7 @@ class Chip8
 {
 public:
     explicit Chip8(unsigned ipc, bool isHighDpi);
-    void run(const std::string& rom);
+    void run(const std::string& rom, bool withCompatibility);
 
 private:
     // Map SFML key codes to Chip-8 hex keypad

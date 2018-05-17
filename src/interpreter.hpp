@@ -30,13 +30,15 @@ class Interpreter
     bool loadProgram(const std::string& program);
     void cycle();
     void cycleTimers();
-    void setKeyState(u8 hexKeyCode, bool isPressed);
+    void useAltShiftLoadBehaviour(bool enabled);
+    void setKeyState(u8 hexKeyCode, bool pressed);
     bool isBuzzerOn() const;
     const ProgramInfo& programInfo() const;
     const FrameBuffer& frameBuffer() const;
 
   private:
     bool keyState[16];
+    bool altShiftLoad;
     ProgramInfo progInfo;
     FrameBuffer buffer;
 

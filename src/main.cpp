@@ -15,6 +15,8 @@ int main(int argc, char** argv)
     options.add_options()
         ("i,ipc",       "Instructions to execute per cycle", CXX_UINT(20), "IPC")
         ("r,high-dpi",  "Scale window for high DPI displays")
+        ("c,compat",    "Enable alternative shift and load behaviour. "
+                        "May be required for some ROMs to work correctly")
         ("h,help",      "Print help");
 
     options.add_options("hidden")
@@ -33,7 +35,7 @@ int main(int argc, char** argv)
         }
 
         Chip8 app(result["ipc"].as<unsigned>(), result.count("high-dpi"));
-        app.run(result["rom"].as<std::string>());
+        app.run(result["rom"].as<std::string>(), result.count("compat"));
     }
     catch (const cxxopts::OptionException& e)
     {
