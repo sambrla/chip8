@@ -363,11 +363,11 @@ void Interpreter::execute(u16 instruction)
     }
     else
     {
-        printf("Unrecognised instruction '%04x' @ 0x%04x\n",
-            instruction, programCounter - 2);
+        printf("Unrecognised instruction @ 0x%04x: %04X\n",
+            programCounter - 2, instruction);
 
         dumpRegisters();
-        dumpMemory(32, programCounter - 2);
+        dumpMemory(16, programCounter - 2);
         exit(1);
     }
 }
@@ -406,20 +406,20 @@ void Interpreter::drawToBuffer(u8 x, u8 y, u8 n)
 
 void Interpreter::dumpRegisters() const
 {
-    printf("registersV\n");
+    printf("Registers\n");
     for (auto i = 0; i < 16; i++)
     {
         printf("  V%x: %X\n", i, registersV[i]);
     }
-    printf("registersI : %X\n", registersI);
-    printf("registersDT: %X\n", registersDT);
-    printf("registersST: %X\n", registersST);
+    printf("  I : %X\n", registersI);
+    printf("  DT: %X\n", registersDT);
+    printf("  ST: %X\n", registersST);
 }
 
-void Interpreter::dumpMemory(u8 bytes, u8 offset) const
+void Interpreter::dumpMemory(u8 bytes, u16 offset) const
 {
-    printf("memory snapshot (%d bytes)\n", bytes);
-    for (auto i = offset; i < offset + bytes; i += 2)
+    printf("Memory (%d bytes)\n", bytes);
+    for (auto i = offset; i < bytes + offset; i += 2)
     {
         printf("  0x%04x: %02X %02X\n", i, mem[i], mem[i + 1]);
     }

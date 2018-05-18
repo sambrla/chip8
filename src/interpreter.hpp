@@ -55,7 +55,7 @@ class Interpreter
     void execute(u16 instruction);
     void drawToBuffer(u8 x, u8 y, u8 n);
     void dumpRegisters() const;
-    void dumpMemory(u8 bytes, u8 offset = 0) const;
+    void dumpMemory(u8 bytes, u16 offset = 0) const;
 };
 
 #endif // INTERPRETER_H_
