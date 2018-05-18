@@ -9,7 +9,7 @@ int main(int argc, char** argv)
 {
     cxxopts::Options options(argv[0],
         "A simple Chip-8 interpreter\ngithub.com/sambrla/chip-8\n");
-    options.positional_help("<PATH_TO_ROM>");
+    options.positional_help("<ROM>");
     options.show_positional_help();
 
     options.add_options()
@@ -34,8 +34,11 @@ int main(int argc, char** argv)
             return 0;
         }
 
-        Chip8 app(result["ipc"].as<unsigned>(), result.count("high-dpi"));
-        app.run(result["rom"].as<std::string>(), result.count("compat"));
+        // Init the interpreter
+        Chip8 interpreter(result["ipc"].as<unsigned>(), result.count("high-dpi"));
+
+        // Run the ROM (with compatibility if specified)
+        interpreter.run(result["rom"].as<std::string>(), result.count("compat"));
     }
     catch (const cxxopts::OptionException& e)
     {
