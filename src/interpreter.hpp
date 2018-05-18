@@ -13,7 +13,7 @@ class Interpreter
 
     struct ProgramInfo
     {
-        unsigned size;
+        std::streampos size;
         std::string name;
         std::string path;
     };

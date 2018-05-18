@@ -6,8 +6,6 @@
 #define GRAPH_GL_COL sf::Color( 41,  43, 49,  40)
 #define GRAPH_OL_COL sf::Color(252,  42, 28, 255)
 
-#define IPC_STR " (" + std::to_string(ipc) + " inst/cycle)"
-
 Chip8::Chip8(unsigned ipc, bool isHighDpi)
     : ipc(ipc), scale(isHighDpi ? 20U : 10U), isPaused(false)
 {
@@ -40,7 +38,7 @@ void Chip8::run(const std::string& rom, bool withCompatibility)
 {
     if (!vm.loadProgram(rom)) return;
 
-    window.setTitle(vm.programInfo().name + IPC_STR);
+    window.setTitle(vm.programInfo().name);
     vm.useAltShiftLoadBehaviour(withCompatibility);
 
     const auto hz = sf::milliseconds(1000/60); // 60 Hz, 16.6 ms
@@ -121,8 +119,7 @@ void Chip8::onKeyUp(const sf::Event& event)
     {
         buzzer.stop();
         isPaused = !isPaused;
-        window.setTitle(isPaused ? "**PAUSED**"
-                                 : vm.programInfo().name + IPC_STR);
+        window.setTitle(isPaused ? "**PAUSED**" : vm.programInfo().name);
     }
 
     // Ctrl+R: reset VM
@@ -131,7 +128,7 @@ void Chip8::onKeyUp(const sf::Event& event)
     {
         buzzer.stop();
         isPaused = false;
-        window.setTitle(vm.programInfo().name + IPC_STR);
+        window.setTitle(vm.programInfo().name);
         vm.reset();
     }
 }
@@ -153,10 +150,10 @@ void Chip8::drawFrame()
             {
                 auto quad = &vertices[i * 4];
 
-                quad[0].position = sf::Vector2f(x * scale,         y * scale);
-                quad[1].position = sf::Vector2f(x * scale + scale, y * scale);
-                quad[2].position = sf::Vector2f(x * scale + scale, y * scale + scale);
-                quad[3].position = sf::Vector2f(x * scale,         y * scale + scale);
+                quad[0].position = sf::Vector2f(float(x*scale),       float(y*scale));
+                quad[1].position = sf::Vector2f(float(x*scale+scale), float(y*scale));
+                quad[2].position = sf::Vector2f(float(x*scale+scale), float(y*scale+scale));
+                quad[3].position = sf::Vector2f(float(x*scale),       float(y*scale+scale));
 
                 quad[0].color = PX_COL;
                 quad[1].color = PX_COL;

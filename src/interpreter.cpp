@@ -56,7 +56,11 @@ bool Interpreter::loadProgram(const std::string& program)
         // Populate progInfo fields
         progInfo.size = len;
         const auto pos = program.find_last_of("/\\");
-        if (pos != std::string::npos)
+        if (pos == std::string::npos)
+        {
+            progInfo.name = program;
+        }
+        else
         {
             progInfo.path = program.substr(0, pos);
             progInfo.name = program.substr(pos + 1);
