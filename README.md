@@ -39,8 +39,8 @@ Optional arguments may be specified to control execution speed (IPC), support hi
 
     -i, --ipc IPC   Instructions to execute per cycle (default: 20)
     -r, --high-dpi  Scale window for high DPI displays
-    -c, --compat    Enable alternate shift and load behaviour. May be required
-                    for some ROMs to work correctly
+    -c, --compat    Enable alternative shift and load behaviour. May be
+                    required for some ROMs to work correctly
     -h, --help      Print help
 
 ## Key map
