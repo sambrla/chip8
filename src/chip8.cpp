@@ -1,10 +1,8 @@
 #include <cmath>
 #include "chip8.hpp"
 
-#define BG_COL       sf::Color( 41,  43, 49, 255)
-#define PX_COL       sf::Color(106, 202, 63, 255)
-#define GRAPH_GL_COL sf::Color( 41,  43, 49,  40)
-#define GRAPH_OL_COL sf::Color(252,  42, 28, 255)
+#define BG_COL sf::Color( 41,  43, 49, 255)
+#define PX_COL sf::Color(106, 202, 63, 255)
 
 Chip8::Chip8(unsigned ipc, bool isHighDpi)
     : ipc(ipc), scale(isHighDpi ? 20U : 10U), isPaused(false)
