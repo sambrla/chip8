@@ -14,7 +14,7 @@ Building the project requires the following:
 
 ### macOS/Linux
 
-    $ git clone https://github.com/sambrla/chip-8.git
+    $ git clone --recurse-submodules https://github.com/sambrla/chip-8.git
     $ cd chip-8
     $ mkdir build
     $ cd build
@@ -23,7 +23,7 @@ Building the project requires the following:
 
 ### Windows (Visual Studio)
 
-    > git clone https://github.com/sambrla/chip-8.git
+    > git clone --recurse-submodules https://github.com/sambrla/chip-8.git
     > cd chip-8
     > mkdir build
     > cd build
@@ -37,7 +37,7 @@ Run the interpreter by passing it a ROM file, e.g.
 
 Optional arguments may be specified to control execution speed (IPC), support high DPI displays, and toggle compatibility.
 
-    -i, --ipc IPC   Instructions to execute per cycle (default: 20)
+    -i, --ipc IPC   Instructions to execute per cycle (default: 9)
     -r, --high-dpi  Scale window for high DPI displays
     -c, --compat    Enable alternative shift and load behaviour. May be
                     required for some ROMs to work correctly
