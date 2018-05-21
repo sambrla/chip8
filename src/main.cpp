@@ -13,7 +13,7 @@ int main(int argc, char** argv)
     options.show_positional_help();
 
     options.add_options()
-        ("i,ipc",       "Instructions to execute per cycle", CXX_UINT(20), "IPC")
+        ("i,ipc",       "Instructions to execute per cycle", CXX_UINT(9), "IPC")
         ("r,high-dpi",  "Scale window for high DPI displays")
         ("c,compat",    "Enable alternative shift and load behaviour. "
                         "May be required for some ROMs to work correctly")
